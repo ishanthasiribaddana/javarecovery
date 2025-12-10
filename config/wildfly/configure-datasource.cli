@@ -1,0 +1,30 @@
+# WildFly CLI Script to configure MySQL datasource for Recovery System
+# Run with: jboss-cli.bat --connect --file=configure-datasource.cli
+
+# Add MySQL JDBC Driver Module (if not exists)
+# First, manually copy mysql-connector-j-8.x.jar to:
+# WILDFLY_HOME/modules/com/mysql/main/mysql-connector-j-8.x.jar
+# And create module.xml in same folder
+
+# Add the driver
+/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql,driver-class-name=com.mysql.cj.jdbc.Driver,driver-xa-datasource-class-name=com.mysql.cj.jdbc.MysqlXADataSource)
+
+# Add the datasource
+data-source add \
+    --name=RecoveryDS \
+    --jndi-name=java:jboss/datasources/RecoveryDS \
+    --driver-name=mysql \
+    --connection-url=jdbc:mysql://localhost:3306/ijts_recovery_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Colombo \
+    --user-name=root \
+    --password=NewPassword123! \
+    --min-pool-size=5 \
+    --max-pool-size=20 \
+    --pool-prefill=true \
+    --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker \
+    --exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter \
+    --enabled=true
+
+# Test the connection
+/subsystem=datasources/data-source=RecoveryDS:test-connection-in-pool
+
+:reload

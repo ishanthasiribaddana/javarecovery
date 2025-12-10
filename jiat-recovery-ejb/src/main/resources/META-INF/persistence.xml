@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="3.0" xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd">
+    
+    <persistence-unit name="RecoveryPU" transaction-type="JTA">
+        <jta-data-source>java:jboss/datasources/RecoveryDS</jta-data-source>
+        
+        <!-- Hibernate as JPA Provider -->
+        <provider>org.hibernate.jpa.HibernatePersistenceProvider</provider>
+        
+        <!-- Recovery System Entities -->
+        <class>com.jiat.recovery.entity.RecoveryCase</class>
+        <class>com.jiat.recovery.entity.RecoveryCalculation</class>
+        <class>com.jiat.recovery.entity.RecoveryBankStatementImport</class>
+        <class>com.jiat.recovery.entity.RecoveryDepositMatch</class>
+        <class>com.jiat.recovery.entity.RecoveryGrievance</class>
+        <class>com.jiat.recovery.entity.RecoveryGrievanceAttachment</class>
+        <class>com.jiat.recovery.entity.RecoveryFeeConfig</class>
+        <class>com.jiat.recovery.entity.RecoveryExchangeRate</class>
+        <class>com.jiat.recovery.entity.RecoveryAiConversation</class>
+        <class>com.jiat.recovery.entity.RecoverySystemUser</class>
+        <class>com.jiat.recovery.entity.RecoveryAuditLog</class>
+        <class>com.jiat.recovery.entity.RecoveryReportTemplate</class>
+        <class>com.jiat.recovery.entity.RecoveryReportLog</class>
+        <class>com.jiat.recovery.entity.RecoveryScheduledReport</class>
+        
+        <!-- Existing IJTS System Entities (Read-Only) -->
+        <class>com.jiat.recovery.entity.readonly.Student</class>
+        <class>com.jiat.recovery.entity.readonly.Course</class>
+        <class>com.jiat.recovery.entity.readonly.PaymentOption</class>
+        <class>com.jiat.recovery.entity.readonly.PaymentOptionType</class>
+        <class>com.jiat.recovery.entity.readonly.UniversalPaymentManager</class>
+        <class>com.jiat.recovery.entity.readonly.StudentPaymentScheduler</class>
+        <class>com.jiat.recovery.entity.readonly.StudentPaymentSchedulerDates</class>
+        <class>com.jiat.recovery.entity.readonly.ScholarshipPaymentScheduler</class>
+        <class>com.jiat.recovery.entity.readonly.Voucher</class>
+        <class>com.jiat.recovery.entity.readonly.VoucherItem</class>
+        <class>com.jiat.recovery.entity.readonly.OfferManager</class>
+        <class>com.jiat.recovery.entity.readonly.StudentOffer</class>
+        <class>com.jiat.recovery.entity.readonly.CurrencyType</class>
+        <class>com.jiat.recovery.entity.readonly.BankAccount</class>
+        <class>com.jiat.recovery.entity.readonly.GeneralUserProfile</class>
+        <class>com.jiat.recovery.entity.readonly.CourseFeeChangedHistory</class>
+        
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+        
+        <properties>
+            <!-- Hibernate Settings -->
+            <property name="hibernate.dialect" value="org.hibernate.dialect.MySQLDialect"/>
+            <property name="hibernate.show_sql" value="false"/>
+            <property name="hibernate.format_sql" value="true"/>
+            <property name="hibernate.use_sql_comments" value="true"/>
+            
+            <!-- Schema Generation - none (using existing database schema) -->
+            <property name="hibernate.hbm2ddl.auto" value="none"/>
+            
+            <!-- Connection Pool (managed by WildFly) -->
+            <property name="hibernate.connection.pool_size" value="10"/>
+            
+            <!-- Second Level Cache -->
+            <property name="hibernate.cache.use_second_level_cache" value="false"/>
+            <property name="hibernate.cache.use_query_cache" value="false"/>
+            
+            <!-- Batch Processing -->
+            <property name="hibernate.jdbc.batch_size" value="25"/>
+            <property name="hibernate.order_inserts" value="true"/>
+            <property name="hibernate.order_updates" value="true"/>
+            
+            <!-- Statistics (disable in production) -->
+            <property name="hibernate.generate_statistics" value="false"/>
+        </properties>
+    </persistence-unit>
+    
+</persistence>

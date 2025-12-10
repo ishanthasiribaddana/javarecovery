@@ -1,0 +1,92 @@
+<!--
+    WildFly DataSource Configuration for JIAT Recovery System
+    
+    Add this datasource configuration to your WildFly standalone.xml
+    Location: WILDFLY_HOME/standalone/configuration/standalone.xml
+    
+    Add within the <subsystem xmlns="urn:jboss:domain:datasources:..."> section
+-->
+
+<datasource jndi-name="java:jboss/datasources/RecoveryDS" 
+            pool-name="RecoveryDS" 
+            enabled="true" 
+            use-java-context="true">
+    
+    <!-- Connection URL - Update with your MySQL server details -->
+    <connection-url>jdbc:mysql://localhost:3306/ijts_recovery_db?useSSL=false&amp;allowPublicKeyRetrieval=true&amp;serverTimezone=UTC&amp;characterEncoding=UTF-8</connection-url>
+    
+    <!-- MySQL Driver -->
+    <driver>mysql</driver>
+    
+    <!-- Connection Pool Settings -->
+    <pool>
+        <min-pool-size>5</min-pool-size>
+        <max-pool-size>20</max-pool-size>
+        <prefill>true</prefill>
+    </pool>
+    
+    <!-- Security - Update credentials -->
+    <security>
+        <user-name>recovery_user</user-name>
+        <password>recovery_password</password>
+    </security>
+    
+    <!-- Validation -->
+    <validation>
+        <valid-connection-checker class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLValidConnectionChecker"/>
+        <exception-sorter class-name="org.jboss.jca.adapters.jdbc.extensions.mysql.MySQLExceptionSorter"/>
+        <validate-on-match>true</validate-on-match>
+        <background-validation>false</background-validation>
+    </validation>
+    
+    <!-- Timeout Settings -->
+    <timeout>
+        <set-tx-query-timeout>false</set-tx-query-timeout>
+        <blocking-timeout-millis>0</blocking-timeout-millis>
+        <idle-timeout-minutes>5</idle-timeout-minutes>
+        <query-timeout>0</query-timeout>
+        <use-try-lock>0</use-try-lock>
+        <allocation-retry>0</allocation-retry>
+        <allocation-retry-wait-millis>0</allocation-retry-wait-millis>
+    </timeout>
+    
+    <!-- Statement Settings -->
+    <statement>
+        <prepared-statement-cache-size>32</prepared-statement-cache-size>
+        <share-prepared-statements>true</share-prepared-statements>
+    </statement>
+</datasource>
+
+<!--
+    MySQL Driver Configuration
+    
+    Add this driver configuration within the <drivers> section:
+-->
+<!--
+<driver name="mysql" module="com.mysql">
+    <driver-class>com.mysql.cj.jdbc.Driver</driver-class>
+    <xa-datasource-class>com.mysql.cj.jdbc.MysqlXADataSource</xa-datasource-class>
+</driver>
+-->
+
+<!--
+    MySQL Module Setup Instructions:
+    
+    1. Create directory: WILDFLY_HOME/modules/com/mysql/main/
+    
+    2. Download MySQL Connector/J JAR and place in that directory
+       (mysql-connector-j-8.0.33.jar)
+    
+    3. Create module.xml in the same directory with content:
+    
+    <?xml version="1.0" encoding="UTF-8"?>
+    <module xmlns="urn:jboss:module:1.9" name="com.mysql">
+        <resources>
+            <resource-root path="mysql-connector-j-8.0.33.jar"/>
+        </resources>
+        <dependencies>
+            <module name="jakarta.api"/>
+            <module name="jakarta.transaction.api"/>
+        </dependencies>
+    </module>
+-->

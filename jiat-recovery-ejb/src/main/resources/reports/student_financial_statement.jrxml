@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports"
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+              xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd"
+              name="StudentFinancialStatement"
+              pageWidth="595"
+              pageHeight="842"
+              columnWidth="555"
+              leftMargin="20"
+              rightMargin="20"
+              topMargin="20"
+              bottomMargin="20"
+              uuid="a1b2c3d4-e5f6-7890-abcd-ef1234567890">
+
+    <property name="com.jaspersoft.studio.data.defaultdataadapter" value="One Empty Record"/>
+
+    <!-- Parameters -->
+    <parameter name="STUDENT_NAME" class="java.lang.String"/>
+    <parameter name="STUDENT_ID" class="java.lang.String"/>
+    <parameter name="PROGRAM" class="java.lang.String"/>
+    <parameter name="PAYMENT_OPTION" class="java.lang.String"/>
+    <parameter name="SCHOLARSHIP_PERCENTAGE" class="java.lang.Double"/>
+    <parameter name="REPORT_DATE" class="java.util.Date"/>
+    <parameter name="BASE_COURSE_FEE" class="java.lang.Double"/>
+    <parameter name="DISCOUNTED_FEE" class="java.lang.Double"/>
+    <parameter name="TOTAL_PAID" class="java.lang.Double"/>
+    <parameter name="TOTAL_DUE" class="java.lang.Double"/>
+    <parameter name="UK_AWARDS_DUE_GBP" class="java.lang.Double"/>
+    <parameter name="CONVOCATION_DUE" class="java.lang.Double"/>
+    <parameter name="PORTAL_ID_CARD_DUE" class="java.lang.Double"/>
+    <parameter name="GRAND_TOTAL_DUE" class="java.lang.Double"/>
+    <parameter name="LOGO_PATH" class="java.lang.String"/>
+
+    <!-- Styles -->
+    <style name="Title" fontName="SansSerif" fontSize="18" isBold="true"/>
+    <style name="SubTitle" fontName="SansSerif" fontSize="12" isBold="true"/>
+    <style name="Header" fontName="SansSerif" fontSize="10" isBold="true" backcolor="#E0E0E0"/>
+    <style name="Detail" fontName="SansSerif" fontSize="10"/>
+    <style name="Footer" fontName="SansSerif" fontSize="8" isItalic="true"/>
+
+    <!-- Title Section -->
+    <title>
+        <band height="120" splitType="Stretch">
+            <!-- Header Box -->
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="80" backcolor="#1E40AF" uuid="header-rect"/>
+            </rectangle>
+            
+            <!-- Institute Name -->
+            <staticText>
+                <reportElement x="20" y="15" width="400" height="25" forecolor="#FFFFFF" uuid="institute-name"/>
+                <textElement>
+                    <font fontName="SansSerif" size="16" isBold="true"/>
+                </textElement>
+                <text><![CDATA[Java Institute for Advanced Technology]]></text>
+            </staticText>
+            
+            <!-- Report Title -->
+            <staticText>
+                <reportElement x="20" y="45" width="300" height="20" forecolor="#FFFFFF" uuid="report-title"/>
+                <textElement>
+                    <font fontName="SansSerif" size="14"/>
+                </textElement>
+                <text><![CDATA[Student Financial Statement]]></text>
+            </staticText>
+            
+            <!-- Report Date -->
+            <textField pattern="MMMM dd, yyyy">
+                <reportElement x="400" y="45" width="140" height="20" forecolor="#FFFFFF" uuid="report-date"/>
+                <textElement textAlignment="Right">
+                    <font fontName="SansSerif" size="10"/>
+                </textElement>
+                <textFieldExpression><![CDATA[$P{REPORT_DATE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Student Info Section -->
+            <staticText>
+                <reportElement x="0" y="90" width="100" height="15" uuid="lbl-student"/>
+                <textElement>
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Student Name:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="100" y="90" width="200" height="15" uuid="val-student"/>
+                <textFieldExpression><![CDATA[$P{STUDENT_NAME}]]></textFieldExpression>
+            </textField>
+            
+            <staticText>
+                <reportElement x="320" y="90" width="80" height="15" uuid="lbl-id"/>
+                <textElement>
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Student ID:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="400" y="90" width="155" height="15" uuid="val-id"/>
+                <textFieldExpression><![CDATA[$P{STUDENT_ID}]]></textFieldExpression>
+            </textField>
+            
+            <staticText>
+                <reportElement x="0" y="105" width="100" height="15" uuid="lbl-program"/>
+                <textElement>
+                    <font isBold="true"/>
+                </textElement>
+                <text><![CDATA[Program:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="100" y="105" width="200" height="15" uuid="val-program"/>
+                <textFieldExpression><![CDATA[$P{PROGRAM}]]></textFieldExpression>
+            </textField>
+        </band>
+    </title>
+
+    <!-- Detail Section -->
+    <detail>
+        <band height="400" splitType="Stretch">
+            <!-- Payment Option & Scholarship -->
+            <rectangle>
+                <reportElement x="0" y="0" width="555" height="50" backcolor="#F3F4F6" uuid="info-box"/>
+            </rectangle>
+            
+            <staticText>
+                <reportElement x="10" y="10" width="120" height="15" uuid="lbl-payment-opt"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Payment Option:]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="130" y="10" width="150" height="15" uuid="val-payment-opt"/>
+                <textFieldExpression><![CDATA[$P{PAYMENT_OPTION}]]></textFieldExpression>
+            </textField>
+            
+            <staticText>
+                <reportElement x="300" y="10" width="100" height="15" uuid="lbl-scholarship"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Scholarship:]]></text>
+            </staticText>
+            <textField pattern="#,##0.00'%'">
+                <reportElement x="400" y="10" width="145" height="15" uuid="val-scholarship"/>
+                <textFieldExpression><![CDATA[$P{SCHOLARSHIP_PERCENTAGE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Main Degree Fee Section -->
+            <staticText>
+                <reportElement x="0" y="60" width="200" height="20" uuid="section-degree"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[Main Degree Fee]]></text>
+            </staticText>
+            
+            <line>
+                <reportElement x="0" y="80" width="555" height="1" uuid="line1"/>
+            </line>
+            
+            <!-- Fee Table Header -->
+            <rectangle>
+                <reportElement x="0" y="85" width="555" height="20" backcolor="#E5E7EB" uuid="fee-header"/>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="88" width="200" height="15" uuid="hdr-desc"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Description]]></text>
+            </staticText>
+            <staticText>
+                <reportElement x="350" y="88" width="100" height="15" uuid="hdr-amount"/>
+                <textElement textAlignment="Right"><font isBold="true"/></textElement>
+                <text><![CDATA[Amount (Rs.)]]></text>
+            </staticText>
+            
+            <!-- Base Course Fee -->
+            <staticText>
+                <reportElement x="10" y="110" width="200" height="15" uuid="lbl-base-fee"/>
+                <text><![CDATA[Base Course Fee]]></text>
+            </staticText>
+            <textField pattern="#,##0.00">
+                <reportElement x="350" y="110" width="100" height="15" uuid="val-base-fee"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{BASE_COURSE_FEE}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Scholarship Discount -->
+            <staticText>
+                <reportElement x="10" y="130" width="200" height="15" uuid="lbl-discount"/>
+                <text><![CDATA[Less: Scholarship Discount]]></text>
+            </staticText>
+            <textField pattern="(#,##0.00)">
+                <reportElement x="350" y="130" width="100" height="15" forecolor="#DC2626" uuid="val-discount"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{BASE_COURSE_FEE} - $P{DISCOUNTED_FEE}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Net Payable -->
+            <line>
+                <reportElement x="300" y="150" width="155" height="1" uuid="line2"/>
+            </line>
+            <staticText>
+                <reportElement x="10" y="155" width="200" height="15" uuid="lbl-net"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Net Payable Amount]]></text>
+            </staticText>
+            <textField pattern="#,##0.00">
+                <reportElement x="350" y="155" width="100" height="15" uuid="val-net"/>
+                <textElement textAlignment="Right"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{DISCOUNTED_FEE}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Total Paid -->
+            <staticText>
+                <reportElement x="10" y="175" width="200" height="15" uuid="lbl-paid"/>
+                <text><![CDATA[Less: Total Payments Received]]></text>
+            </staticText>
+            <textField pattern="(#,##0.00)">
+                <reportElement x="350" y="175" width="100" height="15" forecolor="#16A34A" uuid="val-paid"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{TOTAL_PAID}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Balance Due -->
+            <line>
+                <reportElement x="300" y="195" width="155" height="1" uuid="line3"/>
+            </line>
+            <staticText>
+                <reportElement x="10" y="200" width="200" height="15" uuid="lbl-balance"/>
+                <textElement><font isBold="true"/></textElement>
+                <text><![CDATA[Course Fee Balance Due]]></text>
+            </staticText>
+            <textField pattern="#,##0.00">
+                <reportElement x="350" y="200" width="100" height="15" forecolor="#DC2626" uuid="val-balance"/>
+                <textElement textAlignment="Right"><font isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{TOTAL_DUE}]]></textFieldExpression>
+            </textField>
+
+            <!-- Additional Fees Section -->
+            <staticText>
+                <reportElement x="0" y="230" width="200" height="20" uuid="section-additional"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[Additional Mandatory Fees]]></text>
+            </staticText>
+            
+            <line>
+                <reportElement x="0" y="250" width="555" height="1" uuid="line4"/>
+            </line>
+            
+            <!-- Portal & ID Card -->
+            <staticText>
+                <reportElement x="10" y="260" width="200" height="15" uuid="lbl-portal"/>
+                <text><![CDATA[Student Portal & ID Card]]></text>
+            </staticText>
+            <textField pattern="#,##0.00">
+                <reportElement x="350" y="260" width="100" height="15" uuid="val-portal"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{PORTAL_ID_CARD_DUE}]]></textFieldExpression>
+            </textField>
+            
+            <!-- Convocation -->
+            <staticText>
+                <reportElement x="10" y="280" width="200" height="15" uuid="lbl-convocation"/>
+                <text><![CDATA[Convocation Fee]]></text>
+            </staticText>
+            <textField pattern="#,##0.00">
+                <reportElement x="350" y="280" width="100" height="15" uuid="val-convocation"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{CONVOCATION_DUE}]]></textFieldExpression>
+            </textField>
+
+            <!-- UK Awards Section -->
+            <staticText>
+                <reportElement x="0" y="310" width="250" height="20" uuid="section-uk"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[International University Payments]]></text>
+            </staticText>
+            
+            <line>
+                <reportElement x="0" y="330" width="555" height="1" uuid="line5"/>
+            </line>
+            
+            <staticText>
+                <reportElement x="10" y="340" width="200" height="15" uuid="lbl-uk"/>
+                <text><![CDATA[UK Awards (Levels 1, 2, 3)]]></text>
+            </staticText>
+            <textField pattern="£#,##0.00">
+                <reportElement x="350" y="340" width="100" height="15" uuid="val-uk"/>
+                <textElement textAlignment="Right"/>
+                <textFieldExpression><![CDATA[$P{UK_AWARDS_DUE_GBP}]]></textFieldExpression>
+            </textField>
+
+            <!-- Grand Total Section -->
+            <rectangle>
+                <reportElement x="0" y="370" width="555" height="30" backcolor="#1E40AF" uuid="total-box"/>
+            </rectangle>
+            <staticText>
+                <reportElement x="10" y="377" width="200" height="18" forecolor="#FFFFFF" uuid="lbl-grand"/>
+                <textElement><font size="12" isBold="true"/></textElement>
+                <text><![CDATA[GRAND TOTAL OUTSTANDING (LKR)]]></text>
+            </staticText>
+            <textField pattern="Rs. #,##0.00">
+                <reportElement x="350" y="377" width="195" height="18" forecolor="#FFFFFF" uuid="val-grand"/>
+                <textElement textAlignment="Right"><font size="12" isBold="true"/></textElement>
+                <textFieldExpression><![CDATA[$P{GRAND_TOTAL_DUE}]]></textFieldExpression>
+            </textField>
+        </band>
+    </detail>
+
+    <!-- Footer -->
+    <pageFooter>
+        <band height="50" splitType="Stretch">
+            <line>
+                <reportElement x="0" y="0" width="555" height="1" uuid="footer-line"/>
+            </line>
+            <staticText>
+                <reportElement x="0" y="10" width="400" height="15" uuid="footer-note"/>
+                <textElement>
+                    <font size="8" isItalic="true"/>
+                </textElement>
+                <text><![CDATA[This is a computer-generated statement. For queries, contact the Finance Department.]]></text>
+            </staticText>
+            <textField>
+                <reportElement x="450" y="10" width="50" height="15" uuid="page-num"/>
+                <textElement textAlignment="Right">
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA["Page " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <textField evaluationTime="Report">
+                <reportElement x="500" y="10" width="55" height="15" uuid="page-total"/>
+                <textElement>
+                    <font size="8"/>
+                </textElement>
+                <textFieldExpression><![CDATA[" of " + $V{PAGE_NUMBER}]]></textFieldExpression>
+            </textField>
+            <staticText>
+                <reportElement x="0" y="30" width="555" height="15" uuid="footer-address"/>
+                <textElement textAlignment="Center">
+                    <font size="8"/>
+                </textElement>
+                <text><![CDATA[Java Institute for Advanced Technology | www.jiat.lk | info@jiat.lk]]></text>
+            </staticText>
+        </band>
+    </pageFooter>
+</jasperReport>
