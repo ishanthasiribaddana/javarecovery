@@ -68,12 +68,12 @@ public class StudentProfileDTO {
     private String guardianContact;
     private String guardianRelationship;
     
-    // IIC Payment info from student_batches + batches
-    private Boolean isIicStudent;
-    private String iicBatchName;
-    private Double iicFeeAmount;
-    private Double iicPaidAmount;
-    private Double iicDueAmount;
+    // International/University Payment info based on branch (BCU/IIC/CHO/NONE)
+    private Integer studentBranchId;
+    private String internationalPaymentType; // BCU, IIC, CHO, NONE
+    private Double intlFeeAmount;
+    private Double intlPaidAmount;
+    private Double intlDueAmount;
     
     // Payment schedule (set separately via setter)
     private PaymentScheduleDTO paymentSchedule;
@@ -239,36 +239,36 @@ public class StudentProfileDTO {
         }
         i++;
         
-        // IIC Payment info (from student_batches + batches)
-        // is_iic_student
+        // International/University Payment info based on branch
+        // student_branch_id
         if (row.length > i && row[i] != null) {
-            this.isIicStudent = ((Number) row[i]).intValue() == 1;
+            this.studentBranchId = ((Number) row[i]).intValue();
+        }
+        i++;
+        
+        // international_payment_type (BCU, IIC, CHO, NONE)
+        if (row.length > i && row[i] != null) {
+            this.internationalPaymentType = row[i].toString().trim();
         } else {
-            this.isIicStudent = false;
+            this.internationalPaymentType = "NONE";
         }
         i++;
         
-        // iic_batch_name
+        // intl_fee_amount
         if (row.length > i && row[i] != null) {
-            this.iicBatchName = row[i].toString().trim();
+            this.intlFeeAmount = ((Number) row[i]).doubleValue();
         }
         i++;
         
-        // iic_fee_amount
+        // intl_paid_amount
         if (row.length > i && row[i] != null) {
-            this.iicFeeAmount = ((Number) row[i]).doubleValue();
+            this.intlPaidAmount = ((Number) row[i]).doubleValue();
         }
         i++;
         
-        // iic_paid_amount
+        // intl_due_amount
         if (row.length > i && row[i] != null) {
-            this.iicPaidAmount = ((Number) row[i]).doubleValue();
-        }
-        i++;
-        
-        // iic_due_amount
-        if (row.length > i && row[i] != null) {
-            this.iicDueAmount = ((Number) row[i]).doubleValue();
+            this.intlDueAmount = ((Number) row[i]).doubleValue();
         }
         i++;
         
@@ -461,20 +461,20 @@ public class StudentProfileDTO {
     public String getGuardianRelationship() { return guardianRelationship; }
     public void setGuardianRelationship(String guardianRelationship) { this.guardianRelationship = guardianRelationship; }
     
-    public Boolean getIsIicStudent() { return isIicStudent; }
-    public void setIsIicStudent(Boolean isIicStudent) { this.isIicStudent = isIicStudent; }
+    public Integer getStudentBranchId() { return studentBranchId; }
+    public void setStudentBranchId(Integer studentBranchId) { this.studentBranchId = studentBranchId; }
     
-    public String getIicBatchName() { return iicBatchName; }
-    public void setIicBatchName(String iicBatchName) { this.iicBatchName = iicBatchName; }
+    public String getInternationalPaymentType() { return internationalPaymentType; }
+    public void setInternationalPaymentType(String internationalPaymentType) { this.internationalPaymentType = internationalPaymentType; }
     
-    public Double getIicFeeAmount() { return iicFeeAmount; }
-    public void setIicFeeAmount(Double iicFeeAmount) { this.iicFeeAmount = iicFeeAmount; }
+    public Double getIntlFeeAmount() { return intlFeeAmount; }
+    public void setIntlFeeAmount(Double intlFeeAmount) { this.intlFeeAmount = intlFeeAmount; }
     
-    public Double getIicPaidAmount() { return iicPaidAmount; }
-    public void setIicPaidAmount(Double iicPaidAmount) { this.iicPaidAmount = iicPaidAmount; }
+    public Double getIntlPaidAmount() { return intlPaidAmount; }
+    public void setIntlPaidAmount(Double intlPaidAmount) { this.intlPaidAmount = intlPaidAmount; }
     
-    public Double getIicDueAmount() { return iicDueAmount; }
-    public void setIicDueAmount(Double iicDueAmount) { this.iicDueAmount = iicDueAmount; }
+    public Double getIntlDueAmount() { return intlDueAmount; }
+    public void setIntlDueAmount(Double intlDueAmount) { this.intlDueAmount = intlDueAmount; }
     
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

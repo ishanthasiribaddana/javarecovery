@@ -1394,32 +1394,51 @@ export default function StudentSearch() {
                           },
                           {
                             id: 3,
-                            title: 'IIC Payment',
-                            description: student?.isIicStudent ? (student?.iicBatchName || 'International Industry Certificate') : 'Not Enrolled in IIC',
-                            icon: '📜',
-                            amountGbp: student?.isIicStudent ? null : 500,
-                            amountLkr: student?.isIicStudent ? student?.iicDueAmount : null,
-                            bgClass: student?.isIicStudent 
-                              ? ((student?.iicDueAmount || 0) > 0 
+                            title: student?.internationalPaymentType === 'IIC' ? 'IIC Payment' 
+                                 : student?.internationalPaymentType === 'BCU' ? 'BCU Degree Payment'
+                                 : student?.internationalPaymentType === 'CHO' ? 'No Intl Payment'
+                                 : 'Intl Payment (TBD)',
+                            description: student?.internationalPaymentType === 'IIC' ? 'International Industry Certificate'
+                                       : student?.internationalPaymentType === 'BCU' ? 'Birmingham City University'
+                                       : student?.internationalPaymentType === 'CHO' ? 'Colombo Head Office - No Payment'
+                                       : 'Branch not assigned for international payment',
+                            icon: student?.internationalPaymentType === 'BCU' ? '🎓' : '📜',
+                            amountGbp: student?.internationalPaymentType === 'IIC' ? 500 
+                                     : student?.internationalPaymentType === 'BCU' ? 1300 
+                                     : null,
+                            amountLkr: (student?.intlDueAmount || 0) > 0 ? student?.intlDueAmount : null,
+                            bgClass: student?.internationalPaymentType === 'CHO' 
+                              ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300'
+                              : student?.internationalPaymentType === 'NONE'
+                              ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300'
+                              : (student?.intlDueAmount || 0) > 0 
                                 ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-400' 
-                                : 'bg-gradient-to-br from-green-50 to-green-100 border-green-300')
-                              : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300',
-                            textClass: student?.isIicStudent 
-                              ? ((student?.iicDueAmount || 0) > 0 ? 'text-orange-800' : 'text-green-800')
+                                : (student?.intlPaidAmount || 0) > 0
+                                ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
+                                : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300',
+                            textClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-800'
+                              : student?.internationalPaymentType === 'NONE' ? 'text-yellow-800'
+                              : (student?.intlDueAmount || 0) > 0 ? 'text-orange-800' 
+                              : (student?.intlPaidAmount || 0) > 0 ? 'text-green-800'
                               : 'text-purple-800',
-                            descClass: student?.isIicStudent 
-                              ? ((student?.iicDueAmount || 0) > 0 ? 'text-orange-600' : 'text-green-600')
+                            descClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-600'
+                              : student?.internationalPaymentType === 'NONE' ? 'text-yellow-600'
+                              : (student?.intlDueAmount || 0) > 0 ? 'text-orange-600' 
+                              : (student?.intlPaidAmount || 0) > 0 ? 'text-green-600'
                               : 'text-purple-600',
-                            amountClass: student?.isIicStudent 
-                              ? ((student?.iicDueAmount || 0) > 0 ? 'text-orange-700' : 'text-green-700')
+                            amountClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-700'
+                              : student?.internationalPaymentType === 'NONE' ? 'text-yellow-700'
+                              : (student?.intlDueAmount || 0) > 0 ? 'text-orange-700' 
+                              : (student?.intlPaidAmount || 0) > 0 ? 'text-green-700'
                               : 'text-purple-700',
-                            isIicStudent: student?.isIicStudent || false,
-                            iicFeeAmount: student?.iicFeeAmount || 0,
-                            iicPaidAmount: student?.iicPaidAmount || 0,
-                            iicDueAmount: student?.iicDueAmount || 0,
-                            isPaid: student?.isIicStudent && (student?.iicDueAmount || 0) === 0,
-                            isPartial: student?.isIicStudent && (student?.iicPaidAmount || 0) > 0 && (student?.iicDueAmount || 0) > 0,
-                            isNotEnrolled: !student?.isIicStudent
+                            intlPaymentType: student?.internationalPaymentType || 'NONE',
+                            intlFeeAmount: student?.intlFeeAmount || 0,
+                            intlPaidAmount: student?.intlPaidAmount || 0,
+                            intlDueAmount: student?.intlDueAmount || 0,
+                            isPaid: ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) === 0,
+                            isPartial: ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) > 0,
+                            isNotEnrolled: student?.internationalPaymentType === 'CHO',
+                            isNotDecided: student?.internationalPaymentType === 'NONE'
                           },
                           {
                             id: 4,
@@ -1503,6 +1522,9 @@ export default function StudentSearch() {
                                         {cat.isNotEnrolled && (
                                           <span className="bg-gray-400 text-white text-xs px-2 py-0.5 rounded-full font-medium">N/A</span>
                                         )}
+                                        {cat.isNotDecided && (
+                                          <span className="bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">TBD</span>
+                                        )}
                                       </div>
                                       <p className={`${cat.descClass} text-xs`}>{cat.description}</p>
                                       <div className="mt-2">
@@ -1537,25 +1559,28 @@ export default function StudentSearch() {
                                           </div>
                                         ) : cat.isNotEnrolled ? (
                                           <div className="flex justify-between items-center">
-                                            <span className={`${cat.amountClass} font-bold`}>
-                                              £{cat.amountGbp?.toLocaleString()} GBP
-                                            </span>
-                                            <span className="text-gray-500 text-xs italic">Not enrolled</span>
+                                            <span className={`${cat.amountClass} font-bold`}>No Payment Required</span>
+                                            <span className="text-gray-500 text-xs italic">CHO Branch</span>
                                           </div>
-                                        ) : cat.isIicStudent && (cat.iicDueAmount || 0) > 0 ? (
+                                        ) : cat.isNotDecided ? (
+                                          <div className="flex justify-between items-center">
+                                            <span className={`${cat.amountClass} font-bold`}>Pending Assignment</span>
+                                            <span className="text-yellow-600 text-xs italic">Branch TBD</span>
+                                          </div>
+                                        ) : cat.intlPaymentType && ['IIC', 'BCU'].includes(cat.intlPaymentType) && (cat.intlDueAmount || 0) > 0 ? (
                                           <div className="space-y-1">
                                             <div className="flex justify-between items-center text-xs">
-                                              <span className="text-green-700">Paid: {formatCurrency(cat.iicPaidAmount || 0)}</span>
-                                              <span className="text-gray-500">of {formatCurrency(cat.iicFeeAmount || 0)}</span>
+                                              <span className="text-green-700">Paid: {formatCurrency(cat.intlPaidAmount || 0)}</span>
+                                              <span className="text-gray-500">of {formatCurrency(cat.intlFeeAmount || 0)}</span>
                                             </div>
                                             <div className="flex justify-between items-center">
-                                              <span className="text-orange-700 font-bold text-lg">Due: {formatCurrency(cat.iicDueAmount || 0)}</span>
+                                              <span className="text-orange-700 font-bold text-lg">Due: {formatCurrency(cat.intlDueAmount || 0)}</span>
                                             </div>
                                           </div>
-                                        ) : cat.isIicStudent && (cat.iicDueAmount || 0) === 0 ? (
+                                        ) : cat.intlPaymentType && ['IIC', 'BCU'].includes(cat.intlPaymentType) && (cat.intlPaidAmount || 0) > 0 ? (
                                           <div className="flex justify-between items-center">
                                             <span className="text-green-700 font-bold">
-                                              Paid: {formatCurrency(cat.iicPaidAmount || cat.iicFeeAmount || 0)}
+                                              Paid: {formatCurrency(cat.intlPaidAmount || cat.intlFeeAmount || 0)}
                                             </span>
                                             <span className="text-green-600 text-xs">Fully Paid</span>
                                           </div>

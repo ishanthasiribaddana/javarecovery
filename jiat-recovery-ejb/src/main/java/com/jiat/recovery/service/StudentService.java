@@ -497,12 +497,33 @@ public class StudentService {
                     "(SELECT gr.relationship FROM student_guardian sg " +
                     "  JOIN guardian_relationship gr ON sg.guardian_relationshipid_gt = gr.id_gt " +
                     "  WHERE sg.student = s.s_id LIMIT 1) as guardian_relationship, " +
-                    // IIC Payment Info - placeholder values until we determine correct table structure
-                    "NULL as is_iic_student, " +
-                    "NULL as iic_batch_name, " +
-                    "NULL as iic_fee_amount, " +
-                    "NULL as iic_paid_amount, " +
-                    "NULL as iic_due_amount " +
+                    // International/University Payment Info based on branch
+                    // BCU branch = BCU payment, IIC branch = IIC payment, Colombo Head Office = no payment
+                    "b.bid as student_branch_id, " +
+                    "CASE " +
+                    "  WHEN b.name LIKE '%BCU%' THEN 'BCU' " +
+                    "  WHEN b.name LIKE '%IIC%' THEN 'IIC' " +
+                    "  WHEN b.name LIKE '%Colombo%Head%Office%' THEN 'CHO' " +
+                    "  ELSE 'NONE' " +
+                    "END as international_payment_type, " +
+                    // Get payment info from student_batches + batches for BCU/IIC
+                    // student_batches columns: course_fee, total_paid_amount, total_due_fee
+                    // batches columns: title (for BCU/IIC identification)
+                    "(SELECT sb.course_fee FROM student_batches sb " +
+                    "  JOIN batches bat ON sb.batchesb_id = bat.b_id " +
+                    "  WHERE sb.students_id = s.s_id AND sb.is_active != 0 " +
+                    "  AND ((b.name LIKE '%BCU%' AND bat.title LIKE '%BCU%') " +
+                    "       OR (b.name LIKE '%IIC%' AND bat.title LIKE '%IIC%')) LIMIT 1) as intl_fee_amount, " +
+                    "(SELECT sb.total_paid_amount FROM student_batches sb " +
+                    "  JOIN batches bat ON sb.batchesb_id = bat.b_id " +
+                    "  WHERE sb.students_id = s.s_id AND sb.is_active != 0 " +
+                    "  AND ((b.name LIKE '%BCU%' AND bat.title LIKE '%BCU%') " +
+                    "       OR (b.name LIKE '%IIC%' AND bat.title LIKE '%IIC%')) LIMIT 1) as intl_paid_amount, " +
+                    "(SELECT sb.total_due_fee FROM student_batches sb " +
+                    "  JOIN batches bat ON sb.batchesb_id = bat.b_id " +
+                    "  WHERE sb.students_id = s.s_id AND sb.is_active != 0 " +
+                    "  AND ((b.name LIKE '%BCU%' AND bat.title LIKE '%BCU%') " +
+                    "       OR (b.name LIKE '%IIC%' AND bat.title LIKE '%IIC%')) LIMIT 1) as intl_due_amount " +
                     "FROM student s " +
                     "LEFT JOIN general_user_profile gup ON s.general_user_profilegup_id = gup.gup_id " +
                     "LEFT JOIN course c ON s.coursecid = c.cid " +
