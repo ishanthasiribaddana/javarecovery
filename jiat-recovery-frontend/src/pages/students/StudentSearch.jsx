@@ -303,15 +303,104 @@ export default function StudentSearch() {
             </div>
           )}
 
+          {/* Not Registered Student Warning - Pre-2020 with no voucher items */}
+          {student && studentProfile && (() => {
+            const registrationYear = studentProfile?.academicYear || (studentProfile?.firstPaymentDate ? new Date(studentProfile.firstPaymentDate).getFullYear() : null);
+            const hasPayments = studentProfile?.paymentSchedule?.paymentHistory?.length > 0;
+            const isPreRegistration = registrationYear && registrationYear <= 2019;
+            
+            if (isPreRegistration && !hasPayments) {
+              const studentName = student?.fullName || `${student?.firstName || ''} ${student?.lastName || ''}`.trim();
+              const studentNic = student?.nic || 'N/A';
+              const courseName = studentProfile?.courseTitle || 'N/A';
+              const branchName = studentProfile?.branchName || 'N/A';
+              
+              // Email template for accounts department
+              const emailSubject = encodeURIComponent(`Request to Raise Receipt - ${studentName} (${studentNic})`);
+              const emailBody = encodeURIComponent(
+`Dear Department of Accounts,
+
+I am writing to request the issuance of a receipt for the following student who claims to have made payments but has no voucher items in the system.
+
+STUDENT DETAILS:
+- Name: ${studentName}
+- NIC: ${studentNic}
+- Course: ${courseName}
+- Branch: ${branchName}
+- Registration Year: ${registrationYear}
+
+The student has provided proof of payment and requests that a receipt be raised for their records.
+
+Please verify the payment details and issue the appropriate receipt.
+
+Thank you for your assistance.
+
+Best regards,
+Recovery Department`
+              );
+              
+              return (
+                <div className="bg-red-50 border-2 border-red-300 rounded-lg p-5 mb-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <span className="text-3xl">⚠️</span>
+                    </div>
+                    <div className="ml-4 flex-1">
+                      <h3 className="text-lg font-bold text-red-800 mb-2">Not a Registered Student</h3>
+                      <p className="text-red-700 mb-3">
+                        This student's registration year is <strong>{registrationYear}</strong> (prior to December 31, 2019) 
+                        and there are <strong>no payment records (voucher items)</strong> in the system.
+                      </p>
+                      <div className="bg-white border border-red-200 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-red-800 mb-2">📋 Student Details:</h4>
+                        <ul className="text-sm text-red-700 space-y-1">
+                          <li><strong>Name:</strong> {studentName}</li>
+                          <li><strong>NIC:</strong> {studentNic}</li>
+                          <li><strong>Course:</strong> {courseName}</li>
+                          <li><strong>Branch:</strong> {branchName}</li>
+                          <li><strong>Registration Year:</strong> {registrationYear}</li>
+                        </ul>
+                      </div>
+                      <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 mb-4">
+                        <h4 className="font-semibold text-amber-800 mb-2">💡 If the student claims to have paid:</h4>
+                        <p className="text-amber-700 text-sm mb-3">
+                          Request proof of payment from the student. If verified, send an email to the Department of Accounts 
+                          requesting them to raise a receipt for this student.
+                        </p>
+                        <a 
+                          href={`mailto:accounts@jiat.lk?subject=${emailSubject}&body=${emailBody}`}
+                          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Send Email to Accounts Department
+                        </a>
+                      </div>
+                      <p className="text-xs text-red-600 italic">
+                        Note: Students registered before 2020 without payment records may need manual verification.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Due Summary Cards */}
           {student && studentProfile && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {(() => {
-                // Calculate Course Fee Due
+                // Calculate Course Fee Due - use same filtering as the table
                 const totalCourseFee = studentProfile?.totalCourseFee || 3000000;
                 const scholarshipPct = studentProfile?.scholarshipPercentage || 0;
                 const payableCourseFee = studentProfile?.payableCourseFee || (totalCourseFee * (1 - scholarshipPct / 100));
-                const coursePayments = studentProfile?.paymentSchedule?.paymentHistory?.filter(p => !p.international && p.courseId !== 410) || [];
+                // Filter for course fee payments only (exclude Portal Fee, ID Card, Convocation, etc.)
+                const otherPaymentKeywords = ['portal', 'id card', 'convocation', 'registration', 'exam', 'certificate'];
+                const allLkrPayments = studentProfile?.paymentSchedule?.paymentHistory?.filter(p => !p.international) || [];
+                const coursePayments = allLkrPayments.filter(p => {
+                  const desc = (p.description || '').toLowerCase();
+                  return !otherPaymentKeywords.some(keyword => desc.includes(keyword));
+                });
                 const coursePaid = coursePayments.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
                 const courseFeeDue = Math.max(0, payableCourseFee - coursePaid);
                 
@@ -1199,7 +1288,14 @@ export default function StudentSearch() {
                                   <td className="px-2 py-1.5 text-gray-700">{inst.dueDate || '-'}</td>
                                   <td className="px-2 py-1.5 text-gray-500 font-mono text-xs">{inst.voucherItemId || '-'}</td>
                                   <td className="px-2 py-1.5 text-gray-600 truncate max-w-[200px]" title={inst.description}>{formatIntlDescription(inst.description, inst.courseId)}</td>
-                                  <td className="px-2 py-1.5 font-medium text-purple-600 text-right">{inst.courseId === 410 ? formatGBP((inst.paidAmount || 0) * 1300 / 530000) : formatGBP(inst.paidAmount)}</td>
+                                  <td className="px-2 py-1.5 font-medium text-purple-600 text-right">
+                                    {/* For BCU courses (360/424), use gbpEquivalent calculated from exchange rate on payment date */}
+                                    {inst.courseId === 410 
+                                      ? formatGBP((inst.paidAmount || 0) * 1300 / 530000) 
+                                      : (inst.courseId === 360 || inst.courseId === 424) && inst.gbpEquivalent
+                                        ? formatGBP(inst.gbpEquivalent)
+                                        : formatGBP(inst.paidAmount)}
+                                  </td>
                                   <td className="px-2 py-1.5 font-medium text-green-600 text-right">{inst.courseId === 410 ? formatCurrency(inst.paidAmount) : formatCurrency(inst.lkrEquivalent)}</td>
                                   <td className="px-2 py-1.5 text-center">
                                     {(() => {
@@ -1250,12 +1346,28 @@ export default function StudentSearch() {
                                 <td></td>
                                 <td className="px-2 py-2 text-purple-700 text-right">
                                   {formatGBP(
-                                    intlPayments.filter(i => i.courseId !== 410).reduce((sum, i) => sum + (i.paidAmount || 0), 0) +
-                                    intlPayments.filter(i => i.courseId === 410).reduce((sum, i) => sum + ((i.paidAmount || 0) * 1300 / 530000), 0)
+                                    // For BCU courses (360/424), use gbpEquivalent; for 410 use conversion; for others use paidAmount
+                                    intlPayments.reduce((sum, i) => {
+                                      if (i.courseId === 410) {
+                                        return sum + ((i.paidAmount || 0) * 1300 / 530000);
+                                      } else if ((i.courseId === 360 || i.courseId === 424) && i.gbpEquivalent) {
+                                        return sum + i.gbpEquivalent;
+                                      } else {
+                                        return sum + (i.paidAmount || 0);
+                                      }
+                                    }, 0)
                                   )}
                                 </td>
                                 <td className="px-2 py-2 text-green-700 text-right">
-                                  {formatCurrency(intlPayments.reduce((sum, i) => sum + (i.courseId === 410 ? (i.paidAmount || 0) : (i.lkrEquivalent || 0)), 0))}
+                                  {formatCurrency(intlPayments.reduce((sum, i) => {
+                                    if (i.courseId === 410) {
+                                      return sum + (i.paidAmount || 0);
+                                    } else if (i.courseId === 360 || i.courseId === 424) {
+                                      return sum + (i.paidAmount || 0); // BCU payments are in LKR
+                                    } else {
+                                      return sum + (i.lkrEquivalent || 0);
+                                    }
+                                  }, 0))}
                                 </td>
                               </tr>
                               {(() => {
@@ -1265,21 +1377,29 @@ export default function StudentSearch() {
                                 const course410Fee = 530000; // Standard fee for Course ID 410
                                 const course410Due = course410Payments.length > 0 ? course410Fee - course410Paid : 0;
                                 
-                                // Calculate due for GBP payments (UK Awards: Level 1=£110, Level 2=£120, Level 3=£140 = Total £370)
-                                const gbpPayments = intlPayments.filter(i => i.courseId !== 410);
-                                const gbpPaid = gbpPayments.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
-                                const gbpFee = 370; // Total GBP fee for UK Awards
-                                const gbpDue = gbpPayments.length > 0 ? gbpFee - gbpPaid : 0;
+                                // Calculate due for BCU courses (360/424) - use standard_fee from backend and gbpEquivalent
+                                const bcuPayments = intlPayments.filter(i => i.courseId === 360 || i.courseId === 424);
+                                const bcuPaidGbp = bcuPayments.reduce((sum, i) => sum + (i.gbpEquivalent || 0), 0);
+                                // Get BCU standard fee from studentProfile (this is in GBP from course.standard_fee)
+                                const bcuStandardFeeGbp = studentProfile?.bcuStandardFee || 0;
+                                const bcuDueGbp = bcuPayments.length > 0 && bcuStandardFeeGbp > 0 ? Math.max(0, bcuStandardFeeGbp - bcuPaidGbp) : 0;
+                                
+                                // Calculate due for other GBP payments (UK Awards: Level 1=£100, Level 2=£110, Level 3=£130 = Total £340)
+                                const ukAwardsPayments = intlPayments.filter(i => i.courseId !== 410 && i.courseId !== 360 && i.courseId !== 424);
+                                const ukAwardsPaid = ukAwardsPayments.reduce((sum, i) => sum + (i.paidAmount || 0), 0);
+                                const ukAwardsFee = 340; // Total GBP fee for UK Awards
+                                const ukAwardsDue = ukAwardsPayments.length > 0 ? Math.max(0, ukAwardsFee - ukAwardsPaid) : 0;
                                 
                                 // Convert Course 410 due to GBP equivalent
                                 const course410DueGbp = course410Due > 0 ? (course410Due * 1300 / 530000) : 0;
-                                const totalDueGbp = gbpDue + course410DueGbp;
+                                const totalDueGbp = ukAwardsDue + course410DueGbp + bcuDueGbp;
                                 
-                                // Calculate total LKR due (GBP due converted + Course 410 LKR due)
-                                const gbpDueLkr = gbpDue > 0 && gbpToLkrRate ? gbpDue * gbpToLkrRate : 0;
-                                const totalDueLkr = gbpDueLkr + course410Due;
+                                // Calculate total LKR due
+                                const ukAwardsDueLkr = ukAwardsDue > 0 && gbpToLkrRate ? ukAwardsDue * gbpToLkrRate : 0;
+                                const bcuDueLkr = bcuDueGbp > 0 && gbpToLkrRate ? bcuDueGbp * gbpToLkrRate : 0;
+                                const totalDueLkr = ukAwardsDueLkr + course410Due + bcuDueLkr;
                                 
-                                return (course410Due > 0 || gbpDue > 0) ? (
+                                return (course410Due > 0 || ukAwardsDue > 0 || bcuDueGbp > 0) ? (
                                   <tr className="bg-red-50">
                                     <td colSpan="4" className="px-2 py-2 text-red-700 font-semibold">Due Amount</td>
                                     <td></td>
@@ -1309,6 +1429,34 @@ export default function StudentSearch() {
                         // 3. IIC Payment (International Industry Certificate)
                         // 4. BCU Degree Payment (Birmingham City University)
                         // 5. IIC and BCU Both Payments
+                        
+                        // Calculate International & University Fee due amount for display on BCU card
+                        // This matches the "Due Amount" row in the International & University Fee (GBP) table
+                        const intlPaymentsForDue = intlPayments;
+                        
+                        // Course 410 (University Degree Fee in LKR)
+                        const course410PaymentsForDue = intlPaymentsForDue.filter(p => p.courseId === 410);
+                        const course410PaidForDue = course410PaymentsForDue.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
+                        const course410FeeForDue = 530000;
+                        const course410DueForCard = Math.max(0, course410FeeForDue - course410PaidForDue);
+                        
+                        // BCU batch due (from studentProfile)
+                        const bcuDueGbpForCard = studentProfile?.bcuDueAmount || 0;
+                        const bcuDueLkrForCard = bcuDueGbpForCard > 0 && gbpToLkrRate ? bcuDueGbpForCard * gbpToLkrRate : 0;
+                        
+                        // UK Awards due
+                        const ukAwardsPaymentsForDue = intlPaymentsForDue.filter(p => p.courseId !== 410);
+                        const ukAwardsPaidForDue = ukAwardsPaymentsForDue.reduce((sum, p) => sum + (p.paidAmount || 0), 0);
+                        const ukAwardsFeeForDue = 340;
+                        const ukAwardsDueForCard = ukAwardsPaymentsForDue.length > 0 ? Math.max(0, ukAwardsFeeForDue - ukAwardsPaidForDue) : 0;
+                        const ukAwardsDueLkrForCard = ukAwardsDueForCard > 0 && gbpToLkrRate ? ukAwardsDueForCard * gbpToLkrRate : 0;
+                        
+                        // Total International Fee Due in LKR (same as table)
+                        const intlFeeDueAmount = ukAwardsDueLkrForCard + course410DueForCard + bcuDueLkrForCard;
+                        
+                        // Total GBP due (same as table's GBP Due Amount column)
+                        const course410DueGbpForCard = course410DueForCard > 0 ? (course410DueForCard * 1300 / 530000) : 0;
+                        const intlFeeDueGbp = ukAwardsDueForCard + course410DueGbpForCard + bcuDueGbpForCard;
                         
                         // Count GBP payments (UK Awards) - exclude Course ID 410
                         const gbpPayments = intlPayments.filter(p => p.courseId !== 410);
@@ -1394,20 +1542,43 @@ export default function StudentSearch() {
                           },
                           {
                             id: 3,
-                            title: student?.internationalPaymentType === 'IIC' ? 'IIC Payment' 
+                            // BCU Payment - based on student_batches with course_cid 360 or 424
+                            // Use isBcuStudent flag from backend to determine if student is in BCU batch
+                            // Also check intlFeeAmount/intlPaidAmount for branch-based BCU students
+                            title: studentProfile?.isBcuStudent ? 'BCU Degree Payment'
+                                 : student?.internationalPaymentType === 'IIC' ? 'IIC Payment' 
                                  : student?.internationalPaymentType === 'BCU' ? 'BCU Degree Payment'
                                  : student?.internationalPaymentType === 'CHO' ? 'No Intl Payment'
                                  : 'Intl Payment (TBD)',
-                            description: student?.internationalPaymentType === 'IIC' ? 'International Industry Certificate'
+                            description: studentProfile?.isBcuStudent 
+                                       ? `Birmingham City University (Course ${studentProfile?.bcuCourseId || 'N/A'})`
+                                       : student?.internationalPaymentType === 'IIC' ? 'International Industry Certificate'
                                        : student?.internationalPaymentType === 'BCU' ? 'Birmingham City University'
                                        : student?.internationalPaymentType === 'CHO' ? 'Colombo Head Office - No Payment'
                                        : 'Branch not assigned for international payment',
-                            icon: student?.internationalPaymentType === 'BCU' ? '🎓' : '📜',
-                            amountGbp: student?.internationalPaymentType === 'IIC' ? 500 
+                            icon: studentProfile?.isBcuStudent || student?.internationalPaymentType === 'BCU' ? '🎓' : '📜',
+                            // For BCU batch students, use LKR from standard_fee; for branch-based BCU, use intlFeeAmount
+                            amountGbp: studentProfile?.isBcuStudent ? null  
+                                     : student?.internationalPaymentType === 'IIC' ? 500 
+                                     : student?.internationalPaymentType === 'BCU' && (student?.intlFeeAmount || 0) > 0 ? null // Use LKR instead
                                      : student?.internationalPaymentType === 'BCU' ? 1300 
                                      : null,
-                            amountLkr: (student?.intlDueAmount || 0) > 0 ? student?.intlDueAmount : null,
-                            bgClass: student?.internationalPaymentType === 'CHO' 
+                            amountLkr: studentProfile?.isBcuStudent 
+                                     ? studentProfile?.bcuStandardFee 
+                                     : student?.internationalPaymentType === 'BCU' && (student?.intlFeeAmount || 0) > 0 
+                                       ? student?.intlFeeAmount
+                                       : (student?.intlDueAmount || 0) > 0 ? student?.intlDueAmount : null,
+                            bgClass: studentProfile?.isBcuStudent
+                              ? (studentProfile?.bcuDueAmount || 0) > 0 
+                                ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-400'
+                                : (studentProfile?.bcuPaidAmount || 0) > 0
+                                ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
+                                : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlDueAmount || 0) > 0
+                              ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-400'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlPaidAmount || 0) > 0
+                              ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
+                              : student?.internationalPaymentType === 'CHO' 
                               ? 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300'
                               : student?.internationalPaymentType === 'NONE'
                               ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300'
@@ -1416,29 +1587,63 @@ export default function StudentSearch() {
                                 : (student?.intlPaidAmount || 0) > 0
                                 ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
                                 : 'bg-gradient-to-br from-purple-50 to-purple-100 border-purple-300',
-                            textClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-800'
+                            textClass: studentProfile?.isBcuStudent
+                              ? (studentProfile?.bcuDueAmount || 0) > 0 ? 'text-orange-800' 
+                              : (studentProfile?.bcuPaidAmount || 0) > 0 ? 'text-green-800'
+                              : 'text-purple-800'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlDueAmount || 0) > 0 ? 'text-orange-800'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlPaidAmount || 0) > 0 ? 'text-green-800'
+                              : student?.internationalPaymentType === 'CHO' ? 'text-gray-800'
                               : student?.internationalPaymentType === 'NONE' ? 'text-yellow-800'
                               : (student?.intlDueAmount || 0) > 0 ? 'text-orange-800' 
                               : (student?.intlPaidAmount || 0) > 0 ? 'text-green-800'
                               : 'text-purple-800',
-                            descClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-600'
+                            descClass: studentProfile?.isBcuStudent
+                              ? (studentProfile?.bcuDueAmount || 0) > 0 ? 'text-orange-600' 
+                              : (studentProfile?.bcuPaidAmount || 0) > 0 ? 'text-green-600'
+                              : 'text-purple-600'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlDueAmount || 0) > 0 ? 'text-orange-600'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlPaidAmount || 0) > 0 ? 'text-green-600'
+                              : student?.internationalPaymentType === 'CHO' ? 'text-gray-600'
                               : student?.internationalPaymentType === 'NONE' ? 'text-yellow-600'
                               : (student?.intlDueAmount || 0) > 0 ? 'text-orange-600' 
                               : (student?.intlPaidAmount || 0) > 0 ? 'text-green-600'
                               : 'text-purple-600',
-                            amountClass: student?.internationalPaymentType === 'CHO' ? 'text-gray-700'
+                            amountClass: studentProfile?.isBcuStudent
+                              ? (studentProfile?.bcuDueAmount || 0) > 0 ? 'text-orange-700' 
+                              : (studentProfile?.bcuPaidAmount || 0) > 0 ? 'text-green-700'
+                              : 'text-purple-700'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlDueAmount || 0) > 0 ? 'text-orange-700'
+                              : student?.internationalPaymentType === 'BCU' && (student?.intlPaidAmount || 0) > 0 ? 'text-green-700'
+                              : student?.internationalPaymentType === 'CHO' ? 'text-gray-700'
                               : student?.internationalPaymentType === 'NONE' ? 'text-yellow-700'
                               : (student?.intlDueAmount || 0) > 0 ? 'text-orange-700' 
                               : (student?.intlPaidAmount || 0) > 0 ? 'text-green-700'
                               : 'text-purple-700',
+                            // BCU-specific fields (from student_batches course 360/424)
+                            isBcuStudent: studentProfile?.isBcuStudent || false,
+                            bcuStandardFee: studentProfile?.bcuStandardFee || 0,
+                            bcuPaidAmount: studentProfile?.bcuPaidAmount || 0,
+                            bcuDueAmount: studentProfile?.bcuDueAmount || 0,
+                            bcuCourseId: studentProfile?.bcuCourseId,
+                            // Branch-based BCU/IIC fields (from student_batches with BCU/IIC batch title)
                             intlPaymentType: student?.internationalPaymentType || 'NONE',
                             intlFeeAmount: student?.intlFeeAmount || 0,
                             intlPaidAmount: student?.intlPaidAmount || 0,
                             intlDueAmount: student?.intlDueAmount || 0,
-                            isPaid: ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) === 0,
-                            isPartial: ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) > 0,
-                            isNotEnrolled: student?.internationalPaymentType === 'CHO',
-                            isNotDecided: student?.internationalPaymentType === 'NONE'
+                            // Payment status flags - check both BCU batch and branch-based
+                            isPaid: studentProfile?.isBcuStudent 
+                              ? (studentProfile?.bcuPaidAmount || 0) > 0 && (studentProfile?.bcuDueAmount || 0) === 0
+                              : ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) === 0,
+                            isPartial: studentProfile?.isBcuStudent
+                              ? (studentProfile?.bcuPaidAmount || 0) > 0 && (studentProfile?.bcuDueAmount || 0) > 0
+                              : ['IIC', 'BCU'].includes(student?.internationalPaymentType) && (student?.intlPaidAmount || 0) > 0 && (student?.intlDueAmount || 0) > 0,
+                            // For branch-based BCU with due amount but no paid amount yet
+                            hasDue: !studentProfile?.isBcuStudent && student?.internationalPaymentType === 'BCU' && (student?.intlDueAmount || 0) > 0 && (student?.intlPaidAmount || 0) === 0,
+                            isNotEnrolled: !studentProfile?.isBcuStudent && student?.internationalPaymentType === 'CHO',
+                            isNotDecided: !studentProfile?.isBcuStudent && student?.internationalPaymentType === 'NONE',
+                            courseFeeDue: intlFeeDueAmount > 0 ? intlFeeDueAmount : null,
+                            intlDueGbp: intlFeeDueGbp > 0 ? intlFeeDueGbp : null
                           },
                           {
                             id: 4,
@@ -1450,7 +1655,8 @@ export default function StudentSearch() {
                             bgClass: 'bg-gradient-to-br from-red-50 to-red-100 border-red-300',
                             textClass: 'text-red-800',
                             descClass: 'text-red-600',
-                            amountClass: 'text-red-700'
+                            amountClass: 'text-red-700',
+                            courseFeeDue: intlFeeDueAmount > 0 ? intlFeeDueAmount : null
                           },
                           {
                             id: 5,
@@ -1528,7 +1734,32 @@ export default function StudentSearch() {
                                       </div>
                                       <p className={`${cat.descClass} text-xs`}>{cat.description}</p>
                                       <div className="mt-2">
-                                        {cat.isPaid ? (
+                                        {/* BCU Student - show LKR amounts from standard_fee */}
+                                        {cat.isBcuStudent && cat.isPaid ? (
+                                          <div className="flex justify-between items-center">
+                                            <span className="text-green-700 font-bold">
+                                              Paid: {formatCurrency(cat.bcuPaidAmount || 0)}
+                                            </span>
+                                            <span className="text-green-600 text-xs">Fully Paid</span>
+                                          </div>
+                                        ) : cat.isBcuStudent && cat.isPartial ? (
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between items-center text-xs">
+                                              <span className="text-green-700">Paid: {formatCurrency(cat.bcuPaidAmount || 0)}</span>
+                                              <span className="text-gray-500">of {formatCurrency(cat.bcuStandardFee || 0)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-orange-700 font-bold text-lg">Due: {formatCurrency(cat.bcuDueAmount || 0)}</span>
+                                            </div>
+                                          </div>
+                                        ) : cat.isBcuStudent ? (
+                                          <div className="flex justify-between items-center">
+                                            <span className={`${cat.amountClass} font-bold`}>
+                                              {formatCurrency(cat.bcuStandardFee || 0)}
+                                            </span>
+                                            <span className="text-purple-600 text-xs">Standard Fee</span>
+                                          </div>
+                                        ) : cat.isPaid ? (
                                           <div className="flex justify-between items-center">
                                             <span className="text-green-700 font-bold">
                                               Paid: £{cat.paidAmount?.toLocaleString()} GBP
@@ -1567,6 +1798,16 @@ export default function StudentSearch() {
                                             <span className={`${cat.amountClass} font-bold`}>Pending Assignment</span>
                                             <span className="text-yellow-600 text-xs italic">Branch TBD</span>
                                           </div>
+                                        ) : cat.hasDue ? (
+                                          // Branch-based BCU with due amount but no payments yet
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between items-center text-xs">
+                                              <span className="text-gray-500">Fee: {formatCurrency(cat.intlFeeAmount || 0)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                              <span className="text-orange-700 font-bold text-lg">Due: {formatCurrency(cat.intlDueAmount || 0)}</span>
+                                            </div>
+                                          </div>
                                         ) : cat.intlPaymentType && ['IIC', 'BCU'].includes(cat.intlPaymentType) && (cat.intlDueAmount || 0) > 0 ? (
                                           <div className="space-y-1">
                                             <div className="flex justify-between items-center text-xs">
@@ -1585,14 +1826,26 @@ export default function StudentSearch() {
                                             <span className="text-green-600 text-xs">Fully Paid</span>
                                           </div>
                                         ) : (
-                                          <div className="flex justify-between items-center">
-                                            <span className={`${cat.amountClass} font-bold`}>
-                                              £{cat.amountGbp?.toLocaleString()} GBP
-                                            </span>
-                                            {gbpToLkrRate && (
-                                              <span className="text-green-600 text-xs">
-                                                ≈ {formatCurrency(cat.amountGbp * gbpToLkrRate)}
+                                          <div className="space-y-1">
+                                            <div className="flex justify-between items-center">
+                                              <span className={`${cat.amountClass} font-bold`}>
+                                                {cat.intlDueGbp ? `£${cat.intlDueGbp?.toFixed(2)} GBP` : cat.amountGbp ? `£${cat.amountGbp?.toLocaleString()} GBP` : cat.amountLkr ? formatCurrency(cat.amountLkr) : 'N/A'}
                                               </span>
+                                              {cat.courseFeeDue ? (
+                                                <span className="text-green-600 text-xs">
+                                                  ≈ {formatCurrency(cat.courseFeeDue)}
+                                                </span>
+                                              ) : gbpToLkrRate && cat.amountGbp && (
+                                                <span className="text-green-600 text-xs">
+                                                  ≈ {formatCurrency(cat.amountGbp * gbpToLkrRate)}
+                                                </span>
+                                              )}
+                                            </div>
+                                            {cat.courseFeeDue && (
+                                              <div className="flex justify-between items-center pt-1 border-t border-red-200">
+                                                <span className="text-red-700 font-bold text-sm">Course Fee Due:</span>
+                                                <span className="text-red-700 font-bold">{formatCurrency(cat.courseFeeDue)}</span>
+                                              </div>
                                             )}
                                           </div>
                                         )}

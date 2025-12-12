@@ -12,6 +12,7 @@ import OutstandingReport from './pages/reports/OutstandingReport'
 import OverdueStudentsReport from './pages/reports/OverdueStudentsReport'
 import PaymentReconciliationReport from './pages/reports/PaymentReconciliationReport'
 import ScholarshipDiagnosticReport from './pages/reports/ScholarshipDiagnosticReport'
+import StudentRecoveryReport from './pages/reports/StudentRecoveryReport'
 import Login from './pages/auth/Login'
 import { useAuthStore } from './store/authStore'
 
@@ -42,6 +43,7 @@ function App() {
         <Route path="/reports/overdue-students" element={<OverdueStudentsReport />} />
         <Route path="/reports/reconciliation" element={<PaymentReconciliationReport />} />
         <Route path="/reports/scholarship-diagnostic" element={<ScholarshipDiagnosticReport />} />
+        <Route path="/reports/student-recovery" element={<StudentRecoveryReport />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

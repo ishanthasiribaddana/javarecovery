@@ -523,7 +523,27 @@ public class StudentService {
                     "  JOIN batches bat ON sb.batchesb_id = bat.b_id " +
                     "  WHERE sb.students_id = s.s_id AND sb.is_active != 0 " +
                     "  AND ((b.name LIKE '%BCU%' AND bat.title LIKE '%BCU%') " +
-                    "       OR (b.name LIKE '%IIC%' AND bat.title LIKE '%IIC%')) LIMIT 1) as intl_due_amount " +
+                    "       OR (b.name LIKE '%IIC%' AND bat.title LIKE '%IIC%')) LIMIT 1) as intl_due_amount, " +
+                    // BCU Payment Info - Students in BCU batches (course_cid 360 or 424)
+                    // standard_fee from course table is the applicable fee for BCU payments
+                    "(SELECT 1 FROM student_batches sb_bcu " +
+                    "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
+                    "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as is_bcu_student, " +
+                    "(SELECT bcu_course.standard_fee FROM student_batches sb_bcu " +
+                    "  JOIN course bcu_course ON sb_bcu.course_cid = bcu_course.cid " +
+                    "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
+                    "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as bcu_standard_fee, " +
+                    "(SELECT SUM(vi_bcu.amount) FROM student_batches sb_bcu " +
+                    "  JOIN voucher_item vi_bcu ON vi_bcu.vouchervid = sb_bcu.vouchervid " +
+                    "  JOIN voucher v_bcu ON v_bcu.vid = sb_bcu.vouchervid " +
+                    "  JOIN voucher_type vt_bcu ON v_bcu.voucher_typevt_id = vt_bcu.vt_id " +
+                    "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
+                    "  AND sb_bcu.course_cid IN (360, 424) " +
+                    "  AND vi_bcu.amount > 0 AND vi_bcu.amount < 10000000 " +
+                    "  AND vt_bcu.name IN ('Invoice', 'Receipt', 'Sales Invoice')) as bcu_paid_amount, " +
+                    "(SELECT sb_bcu.course_cid FROM student_batches sb_bcu " +
+                    "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
+                    "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as bcu_course_id " +
                     "FROM student s " +
                     "LEFT JOIN general_user_profile gup ON s.general_user_profilegup_id = gup.gup_id " +
                     "LEFT JOIN course c ON s.coursecid = c.cid " +
@@ -644,7 +664,25 @@ public class StudentService {
                     .getResultList();
             
             for (Object[] row : paymentHistoryResults) {
-                schedule.getPaymentHistory().add(new PaymentHistoryDTO(row));
+                PaymentHistoryDTO payment = new PaymentHistoryDTO(row);
+                
+                // For BCU payments (course 360/424), calculate GBP equivalent using exchange rate on payment date
+                // paidAmount is in LKR, we need to convert to GBP
+                if (payment.getCourseId() != null && 
+                    (payment.getCourseId() == 360 || payment.getCourseId() == 424) &&
+                    payment.getPaidAmount() != null && payment.getPaidAmount() > 0 &&
+                    payment.getDueDate() != null) {
+                    
+                    // Get exchange rate for the payment date (GBP to LKR)
+                    Double exchangeRate = getExchangeRateForDate(payment.getDueDate());
+                    if (exchangeRate != null && exchangeRate > 0) {
+                        // Convert LKR to GBP: gbpAmount = lkrAmount / exchangeRate
+                        payment.setGbpEquivalent(payment.getPaidAmount() / exchangeRate);
+                        payment.setExchangeRateUsed(exchangeRate);
+                    }
+                }
+                
+                schedule.getPaymentHistory().add(payment);
             }
             
             // Fetch pending installments - calculate due_amount as (to_be_paid_amount - paid_amount)
@@ -1108,6 +1146,114 @@ public class StudentService {
         } catch (Exception e) {
             logger.error("Error getting IIC students for testing", e);
             return new java.util.ArrayList<>();
+        }
+    }
+    
+    /**
+     * Get student recovery report - 100 students registered after 2020-12-31 with payment details.
+     * Returns: NIC, Name, Phone, Scholarship %, Payable Fee, Paid Amount, Due Amount
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> getStudentRecoveryReport(int limit) {
+        try {
+            String sql = """
+                SELECT 
+                    gup.nic,
+                    s.student_id,
+                    CONCAT(gup.first_name, ' ', COALESCE(gup.last_name, '')) as student_name,
+                    gup.mobile_phone as phone,
+                    upm.scholarship as scholarship_percentage,
+                    upm.payable_amount as payable_fee,
+                    upm.paid_amount as paid_amount,
+                    upm.total_due as due_amount,
+                    MIN(vi.date) as first_payment_date
+                FROM student s 
+                JOIN general_user_profile gup ON s.general_user_profilegup_id = gup.gup_id 
+                JOIN universal_payment_manager upm ON upm.general_user_profile_gup_id = gup.gup_id 
+                JOIN voucher v ON v.general_user_profilegup_id = gup.gup_id 
+                JOIN voucher_item vi ON vi.vouchervid = v.vid 
+                WHERE vi.date > '2020-12-31' 
+                AND gup.nic IS NOT NULL 
+                AND gup.nic != '' 
+                AND s.is_active = 1
+                GROUP BY s.s_id 
+                ORDER BY first_payment_date ASC
+                LIMIT :limit
+                """;
+            
+            List<Object[]> results = em.createNativeQuery(sql)
+                    .setParameter("limit", limit)
+                    .getResultList();
+            
+            List<Map<String, Object>> report = new java.util.ArrayList<>();
+            
+            for (Object[] row : results) {
+                Map<String, Object> record = new java.util.HashMap<>();
+                int i = 0;
+                record.put("nic", row[i]); i++;
+                record.put("studentId", row[i]); i++;
+                record.put("studentName", row[i]); i++;
+                record.put("phone", row[i]); i++;
+                record.put("scholarshipPercentage", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("payableFee", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("paidAmount", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("dueAmount", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("firstPaymentDate", row[i] != null ? row[i].toString() : null); i++;
+                report.add(record);
+            }
+            
+            return report;
+        } catch (Exception e) {
+            logger.error("Error getting student recovery report", e);
+            return new java.util.ArrayList<>();
+        }
+    }
+
+    /**
+     * Get the GBP to LKR exchange rate for a specific date.
+     * Looks up the recovery_exchange_rate table for the closest rate on or before the given date.
+     * Falls back to a default rate if no rate is found.
+     * 
+     * @param date The date to get the exchange rate for
+     * @return The exchange rate (GBP to LKR), or default 380.0 if not found
+     */
+    private Double getExchangeRateForDate(java.time.LocalDate date) {
+        try {
+            // GBP = currency_id 2, LKR = currency_id 1
+            String sql = """
+                SELECT rate FROM recovery_exchange_rate 
+                WHERE from_currency_id = 2 AND to_currency_id = 1 
+                AND rate_date <= :targetDate AND is_active = 1
+                ORDER BY rate_date DESC 
+                LIMIT 1
+                """;
+            
+            List<?> results = em.createNativeQuery(sql)
+                    .setParameter("targetDate", java.sql.Date.valueOf(date))
+                    .getResultList();
+            
+            if (!results.isEmpty() && results.get(0) != null) {
+                return ((Number) results.get(0)).doubleValue();
+            }
+            
+            // Fallback: try to get the latest rate regardless of date
+            String fallbackSql = """
+                SELECT rate FROM recovery_exchange_rate 
+                WHERE from_currency_id = 2 AND to_currency_id = 1 AND is_active = 1
+                ORDER BY rate_date DESC 
+                LIMIT 1
+                """;
+            
+            List<?> fallbackResults = em.createNativeQuery(fallbackSql).getResultList();
+            if (!fallbackResults.isEmpty() && fallbackResults.get(0) != null) {
+                return ((Number) fallbackResults.get(0)).doubleValue();
+            }
+            
+            // Default exchange rate if no data found (approximate GBP to LKR)
+            return 380.0;
+        } catch (Exception e) {
+            logger.warn("Error getting exchange rate for date {}: {}", date, e.getMessage());
+            return 380.0; // Default fallback
         }
     }
 }

@@ -345,4 +345,15 @@ public class StudentResource {
         var testCases = studentService.getIicStudentsForTesting();
         return Response.ok(testCases).build();
     }
+    
+    /**
+     * Get student recovery report - students registered after 2020-12-31 with payment details.
+     */
+    @GET
+    @Path("/reports/recovery")
+    public Response getStudentRecoveryReport(
+            @QueryParam("limit") @DefaultValue("100") int limit) {
+        var report = studentService.getStudentRecoveryReport(limit);
+        return Response.ok(report).build();
+    }
 }

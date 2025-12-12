@@ -75,6 +75,13 @@ public class StudentProfileDTO {
     private Double intlPaidAmount;
     private Double intlDueAmount;
     
+    // BCU Payment info - Students in BCU batches (course_cid 360 or 424)
+    private Boolean isBcuStudent;
+    private Double bcuStandardFee; // standard_fee from course table for c_id 360/424
+    private Double bcuPaidAmount;  // Total paid from voucher_item for BCU courses
+    private Double bcuDueAmount;   // Calculated: bcuStandardFee - bcuPaidAmount
+    private Integer bcuCourseId;   // 360 or 424
+    
     // Payment schedule (set separately via setter)
     private PaymentScheduleDTO paymentSchedule;
     
@@ -271,6 +278,40 @@ public class StudentProfileDTO {
             this.intlDueAmount = ((Number) row[i]).doubleValue();
         }
         i++;
+        
+        // BCU Payment info - Students in BCU batches (course_cid 360 or 424)
+        // is_bcu_student
+        if (row.length > i && row[i] != null) {
+            this.isBcuStudent = ((Number) row[i]).intValue() == 1;
+        } else {
+            this.isBcuStudent = false;
+        }
+        i++;
+        
+        // bcu_standard_fee (from course.standard_fee for c_id 360/424)
+        if (row.length > i && row[i] != null) {
+            this.bcuStandardFee = ((Number) row[i]).doubleValue();
+        }
+        i++;
+        
+        // bcu_paid_amount (sum of voucher_item amounts for BCU courses)
+        if (row.length > i && row[i] != null) {
+            this.bcuPaidAmount = ((Number) row[i]).doubleValue();
+        } else {
+            this.bcuPaidAmount = 0.0;
+        }
+        i++;
+        
+        // bcu_course_id (360 or 424)
+        if (row.length > i && row[i] != null) {
+            this.bcuCourseId = ((Number) row[i]).intValue();
+        }
+        i++;
+        
+        // Calculate BCU due amount
+        if (this.isBcuStudent != null && this.isBcuStudent && this.bcuStandardFee != null) {
+            this.bcuDueAmount = Math.max(0, this.bcuStandardFee - (this.bcuPaidAmount != null ? this.bcuPaidAmount : 0));
+        }
         
         // Calculate offer value and final payable
         if (this.payableCourseFee != null) {
@@ -475,6 +516,21 @@ public class StudentProfileDTO {
     
     public Double getIntlDueAmount() { return intlDueAmount; }
     public void setIntlDueAmount(Double intlDueAmount) { this.intlDueAmount = intlDueAmount; }
+    
+    public Boolean getIsBcuStudent() { return isBcuStudent; }
+    public void setIsBcuStudent(Boolean isBcuStudent) { this.isBcuStudent = isBcuStudent; }
+    
+    public Double getBcuStandardFee() { return bcuStandardFee; }
+    public void setBcuStandardFee(Double bcuStandardFee) { this.bcuStandardFee = bcuStandardFee; }
+    
+    public Double getBcuPaidAmount() { return bcuPaidAmount; }
+    public void setBcuPaidAmount(Double bcuPaidAmount) { this.bcuPaidAmount = bcuPaidAmount; }
+    
+    public Double getBcuDueAmount() { return bcuDueAmount; }
+    public void setBcuDueAmount(Double bcuDueAmount) { this.bcuDueAmount = bcuDueAmount; }
+    
+    public Integer getBcuCourseId() { return bcuCourseId; }
+    public void setBcuCourseId(Integer bcuCourseId) { this.bcuCourseId = bcuCourseId; }
     
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

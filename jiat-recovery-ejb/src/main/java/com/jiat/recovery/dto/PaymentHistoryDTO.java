@@ -18,6 +18,8 @@ public class PaymentHistoryDTO {
     private Double lkrEquivalent; // For GBP payments, this is the LKR equivalent amount
     private boolean isInternational; // True if this is a GBP/international payment
     private Integer courseId; // Course ID from student_batches
+    private Double gbpEquivalent; // LKR amount converted to GBP using exchange rate on payment date
+    private Double exchangeRateUsed; // The GBP-LKR exchange rate used for conversion
     
     public PaymentHistoryDTO() {}
     
@@ -62,4 +64,10 @@ public class PaymentHistoryDTO {
     
     public Integer getCourseId() { return courseId; }
     public void setCourseId(Integer courseId) { this.courseId = courseId; }
+    
+    public Double getGbpEquivalent() { return gbpEquivalent; }
+    public void setGbpEquivalent(Double gbpEquivalent) { this.gbpEquivalent = gbpEquivalent; }
+    
+    public Double getExchangeRateUsed() { return exchangeRateUsed; }
+    public void setExchangeRateUsed(Double exchangeRateUsed) { this.exchangeRateUsed = exchangeRateUsed; }
 }

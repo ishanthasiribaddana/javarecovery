@@ -108,6 +108,11 @@ export const scholarshipDiagnosticApi = {
   getReport: () => api.get('/students/reports/scholarship-diagnostic'),
 }
 
+// Student Recovery Report API
+export const recoveryReportApi = {
+  getReport: (limit = 100) => api.get(`/students/reports/recovery?limit=${limit}`),
+}
+
 // Dashboard API
 export const dashboardApi = {
   getAll: (officerId) => api.get(`/dashboard${officerId ? `?officerId=${officerId}` : ''}`),
