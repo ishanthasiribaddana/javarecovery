@@ -9,30 +9,42 @@ All notable database changes for the JIAT Recovery System will be documented in 
 ## [1.0.1] - 2025-12-12
 
 ### Summary
-Database data migration for BCU Degree Payment tracking.
+Updated `voucher_item` records to map international payment types using `voucher_typevt_id` field.
 
 ### Changes
 
 #### Data Updates
-- **Table:** `student_batches`
-  - Updated 534 records where `course_cid = 360` (BCU Degree)
-  - Verified voucher item associations for BCU payments
+- **Table:** `voucher_item`
+  - Updated `voucher_typevt_id` field to categorize international payments
+  - Mapped records to appropriate voucher types for UK Awards, BCU, and IIC payments
+
+#### Voucher Types Used
+| vt_id | Voucher Type Name | Records Updated |
+|-------|-------------------|-----------------|
+| 40 | UK Award 1 | 2,855 |
+| 41 | UK Award 2 | 1,698 |
+| 42 | UK Award 3 | 697 |
+| 43 | BCU Payment | 555 |
+| 44 | IIC Payment | 349 |
+| **Total** | | **6,154** |
 
 #### Queries Used
 ```sql
--- Count BCU students
-SELECT COUNT(*) FROM student_batches WHERE course_cid IN (360, 424);
-
--- Verify voucher items for BCU courses
-SELECT course_id, COUNT(*) AS count 
-FROM voucher_item 
-WHERE course_id IN (360, 424) 
-GROUP BY course_id;
+-- Verify voucher item counts by type
+SELECT vt.name, COUNT(*) as count 
+FROM voucher_item vi 
+JOIN voucher_type vt ON vi.voucher_typevt_id = vt.vt_id 
+WHERE vi.voucher_typevt_id IN (40, 41, 42, 43, 44) 
+GROUP BY vi.voucher_typevt_id, vt.name 
+ORDER BY vi.voucher_typevt_id;
 ```
 
 ### Verification
-- Total records in `student_batches` for course 360: **534**
-- Total records in `student_batches` for course 424: **0**
+- UK Award 1 (vt_id=40): **2,855 records**
+- UK Award 2 (vt_id=41): **1,698 records**
+- UK Award 3 (vt_id=42): **697 records**
+- BCU Payment (vt_id=43): **555 records**
+- IIC Payment (vt_id=44): **349 records**
 
 ### Related Code Changes
 - Commit: `a73c6ad`
