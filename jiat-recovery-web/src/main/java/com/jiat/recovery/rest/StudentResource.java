@@ -447,4 +447,15 @@ public class StudentResource {
         var result = studentService.analyzeOverpaidStudents();
         return Response.ok(result).build();
     }
+    
+    /**
+     * Analyze voucher items for a specific NIC to debug payment discrepancies.
+     * Checks for items with is_deleted=0 and is_active=0.
+     */
+    @GET
+    @Path("/debug/voucher-items/{nic}")
+    public Response analyzeVoucherItems(@PathParam("nic") String nic) {
+        var result = studentService.analyzeVoucherItemsByNic(nic);
+        return Response.ok(result).build();
+    }
 }

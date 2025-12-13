@@ -1486,4 +1486,135 @@ public class StudentService {
             return new java.util.ArrayList<>();
         }
     }
+    
+    /**
+     * Analyze voucher items for a specific NIC to debug payment discrepancies.
+     * Checks for items with is_deleted=0 and is_active=0.
+     */
+    public java.util.Map<String, Object> analyzeVoucherItemsByNic(String nic) {
+        try {
+            java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+            
+            // Get gup_id for this NIC
+            String gupSql = "SELECT gup_id FROM general_user_profile WHERE nic = :nic";
+            List<?> gupResults = em.createNativeQuery(gupSql)
+                    .setParameter("nic", nic)
+                    .getResultList();
+            
+            if (gupResults.isEmpty()) {
+                result.put("error", "NIC not found");
+                return result;
+            }
+            
+            Integer gupId = ((Number) gupResults.get(0)).intValue();
+            result.put("nic", nic);
+            result.put("gupId", gupId);
+            
+            // Count all voucher items for this user
+            String totalSql = """
+                SELECT COUNT(*), COALESCE(SUM(vi.amount), 0)
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                """;
+            Object[] totalResult = (Object[]) em.createNativeQuery(totalSql)
+                    .setParameter("gupId", gupId)
+                    .getSingleResult();
+            result.put("totalVoucherItems", ((Number) totalResult[0]).intValue());
+            result.put("totalAmount", ((Number) totalResult[1]).doubleValue());
+            
+            // Count active voucher items (is_active=1 or is_active is null, is_deleted=0 or is_deleted is null)
+            String activeSql = """
+                SELECT COUNT(*), COALESCE(SUM(vi.amount), 0)
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                AND (vi.is_active = 1 OR vi.is_active IS NULL)
+                AND (vi.is_deleted = 0 OR vi.is_deleted IS NULL)
+                """;
+            Object[] activeResult = (Object[]) em.createNativeQuery(activeSql)
+                    .setParameter("gupId", gupId)
+                    .getSingleResult();
+            result.put("activeVoucherItems", ((Number) activeResult[0]).intValue());
+            result.put("activeAmount", ((Number) activeResult[1]).doubleValue());
+            
+            // Count inactive voucher items (is_active=0)
+            String inactiveSql = """
+                SELECT COUNT(*), COALESCE(SUM(vi.amount), 0)
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                AND vi.is_active = 0
+                """;
+            Object[] inactiveResult = (Object[]) em.createNativeQuery(inactiveSql)
+                    .setParameter("gupId", gupId)
+                    .getSingleResult();
+            result.put("inactiveVoucherItems", ((Number) inactiveResult[0]).intValue());
+            result.put("inactiveAmount", ((Number) inactiveResult[1]).doubleValue());
+            
+            // Count deleted voucher items (is_deleted=1)
+            String deletedSql = """
+                SELECT COUNT(*), COALESCE(SUM(vi.amount), 0)
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                AND vi.is_deleted = 1
+                """;
+            Object[] deletedResult = (Object[]) em.createNativeQuery(deletedSql)
+                    .setParameter("gupId", gupId)
+                    .getSingleResult();
+            result.put("deletedVoucherItems", ((Number) deletedResult[0]).intValue());
+            result.put("deletedAmount", ((Number) deletedResult[1]).doubleValue());
+            
+            // Count items with is_deleted=0 AND is_active=0
+            String deletedZeroActiveZeroSql = """
+                SELECT COUNT(*), COALESCE(SUM(vi.amount), 0)
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                AND vi.is_deleted = 0
+                AND vi.is_active = 0
+                """;
+            Object[] deletedZeroActiveZeroResult = (Object[]) em.createNativeQuery(deletedZeroActiveZeroSql)
+                    .setParameter("gupId", gupId)
+                    .getSingleResult();
+            result.put("isDeleted0_isActive0_count", ((Number) deletedZeroActiveZeroResult[0]).intValue());
+            result.put("isDeleted0_isActive0_amount", ((Number) deletedZeroActiveZeroResult[1]).doubleValue());
+            
+            // Get detailed list of voucher items
+            String detailSql = """
+                SELECT vi.vi_id, vi.id, vi.description, vi.amount, vi.is_active, vi.is_deleted, vi.date, v.vid, v.id as voucher_id
+                FROM voucher v
+                JOIN voucher_item vi ON vi.vouchervid = v.vid
+                WHERE v.general_user_profilegup_id = :gupId
+                ORDER BY vi.date DESC, vi.vi_id DESC
+                """;
+            List<Object[]> details = em.createNativeQuery(detailSql)
+                    .setParameter("gupId", gupId)
+                    .getResultList();
+            
+            List<java.util.Map<String, Object>> items = new java.util.ArrayList<>();
+            for (Object[] row : details) {
+                java.util.Map<String, Object> item = new java.util.LinkedHashMap<>();
+                item.put("viId", row[0]);
+                item.put("itemId", row[1]);
+                item.put("description", row[2]);
+                item.put("amount", row[3] != null ? ((Number) row[3]).doubleValue() : 0.0);
+                item.put("isActive", row[4]);
+                item.put("isDeleted", row[5]);
+                item.put("date", row[6] != null ? row[6].toString() : null);
+                item.put("voucherId", row[7]);
+                item.put("voucherCode", row[8]);
+                items.add(item);
+            }
+            result.put("voucherItems", items);
+            
+            return result;
+        } catch (Exception e) {
+            logger.error("Error analyzing voucher items for NIC: {}", nic, e);
+            java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("error", e.getMessage());
+            return result;
+        }
+    }
 }
