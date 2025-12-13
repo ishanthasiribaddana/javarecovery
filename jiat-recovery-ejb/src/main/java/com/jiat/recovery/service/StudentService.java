@@ -468,7 +468,14 @@ public class StudentService {
                     "gup.profile_created_date, gup.nationality, " +
                     "COALESCE(sps_course.course_title, c.course_title) as course_title, COALESCE(sps2.course_cid, c.cid) as cid, " +
                     "b.name as branch_name, " +
-                    "i.name as intake_name, " +
+                    "CONCAT(" +
+                    "  COALESCE(SUBSTRING_INDEX(s.student_id, '/', 5), ''), " +
+                    "  ' - ', " +
+                    "  COALESCE((SELECT bat.title FROM student_batches sb " +
+                    "    JOIN batches bat ON sb.batchesb_id = bat.b_id " +
+                    "    WHERE sb.students_id = s.s_id AND sb.is_active != 0 " +
+                    "    ORDER BY sb.sb_id DESC LIMIT 1), 'N/A')" +
+                    ") as intake_name, " +
                     "(SELECT MIN(v.date) FROM voucher v WHERE v.general_user_profilegup_id = gup.gup_id) as first_payment_date, " +
                     "po.id as payment_option_id, " +
                     "po.name as payment_option_name, " +
@@ -477,12 +484,16 @@ public class StudentService {
                     "    WHEN po.id = 1 THEN sps2.scholarship_value " +
                     "    WHEN po.id = 2 THEN sps2.year_payment_value " +
                     "    WHEN po.id = 3 THEN sps2.semester_payment_value " +
+                    "    WHEN po.id = 4 THEN sps2.semester_payment_value - 5 " +
                     "    ELSE sps2.scholarship_value " +
                     "  END, " +
                     "  ubm.scholarship" +
                     ") as scholarship_percentage, " +
                     "COALESCE(sps2.course_fee, 3000000) as total_course_fee, " +
                     "sps2.discounted_fee as discounted_fee, " +
+                    "(SELECT sh.old_percentage FROM scholarship_history sh " +
+                    "  WHERE sh.scholarship_payment_scheduler_id = sps2.id " +
+                    "  ORDER BY sh.change_date ASC LIMIT 1) as original_scholarship_percentage, " +
                     "om.discount_percentage as offer_discount_percentage, " +
                     "om.discount_amount as offer_discount_amount, " +
                     "om.date_to as offer_valid_until, " +
@@ -529,23 +540,25 @@ public class StudentService {
                     "(SELECT 1 FROM student_batches sb_bcu " +
                     "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
                     "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as is_bcu_student, " +
-                    "(SELECT bcu_course.standard_fee FROM student_batches sb_bcu " +
-                    "  JOIN course bcu_course ON sb_bcu.course_cid = bcu_course.cid " +
+                    "(SELECT sb_bcu.course_fee FROM student_batches sb_bcu " +
                     "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
                     "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as bcu_standard_fee, " +
-                    "(SELECT SUM(vi_bcu.amount) FROM student_batches sb_bcu " +
-                    "  JOIN voucher_item vi_bcu ON vi_bcu.vouchervid = sb_bcu.vouchervid " +
-                    "  JOIN voucher v_bcu ON v_bcu.vid = sb_bcu.vouchervid " +
-                    "  JOIN voucher_type vt_bcu ON v_bcu.voucher_typevt_id = vt_bcu.vt_id " +
-                    "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
-                    "  AND sb_bcu.course_cid IN (360, 424) " +
-                    "  AND vi_bcu.amount > 0 AND vi_bcu.amount < 10000000 " +
-                    "  AND vt_bcu.name IN ('Invoice', 'Receipt', 'Sales Invoice')) as bcu_paid_amount, " +
+                    "(SELECT SUM(vi_bcu.amount) FROM voucher_item vi_bcu " +
+                    "  JOIN voucher v_bcu ON vi_bcu.vouchervid = v_bcu.vid " +
+                    "  WHERE v_bcu.general_user_profilegup_id = gup.gup_id " +
+                    "  AND vi_bcu.voucher_typevt_id = 43) as bcu_paid_amount, " +
                     "(SELECT sb_bcu.course_cid FROM student_batches sb_bcu " +
                     "  WHERE sb_bcu.students_id = s.s_id AND sb_bcu.is_active != 0 " +
-                    "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as bcu_course_id " +
-                    "FROM student s " +
-                    "LEFT JOIN general_user_profile gup ON s.general_user_profilegup_id = gup.gup_id " +
+                    "  AND sb_bcu.course_cid IN (360, 424) LIMIT 1) as bcu_course_id, " +
+                    // Last payment date and days since last payment
+                    "(SELECT MAX(v_last.date) FROM voucher v_last " +
+                    "  JOIN voucher_item vi_last ON vi_last.vouchervid = v_last.vid " +
+                    "  WHERE v_last.general_user_profilegup_id = gup.gup_id) as last_payment_date, " +
+                    "(SELECT DATEDIFF(CURDATE(), MAX(v_last.date)) FROM voucher v_last " +
+                    "  JOIN voucher_item vi_last ON vi_last.vouchervid = v_last.vid " +
+                    "  WHERE v_last.general_user_profilegup_id = gup.gup_id) as days_since_last_payment " +
+                    "FROM general_user_profile gup " +
+                    "LEFT JOIN student s ON s.general_user_profilegup_id = gup.gup_id " +
                     "LEFT JOIN course c ON s.coursecid = c.cid " +
                     "LEFT JOIN branch b ON s.branch_bid = b.bid " +
                     "LEFT JOIN intake i ON s.intake_id = i.id " +
@@ -557,13 +570,12 @@ public class StudentService {
                     "LEFT JOIN student_offer so ON s.s_id = so.student_s_id AND so.is_taken = 1 " +
                     "LEFT JOIN offer_manager om ON so.offer_manager_id = om.id " +
                     "LEFT JOIN offer_name oname ON om.offer_name_id = oname.id " +
-                    "WHERE s.is_active = 1 " +
-                    "AND (gup.nic = :exactSearch " +
+                    "WHERE (gup.nic = :exactSearch " +
                     "OR gup.nic LIKE :search " +
                     "OR gup.first_name LIKE :search " +
                     "OR gup.last_name LIKE :search " +
                     "OR CONCAT(gup.first_name, ' ', gup.last_name) LIKE :search) " +
-                    "ORDER BY CASE WHEN gup.nic = :exactSearch THEN 0 ELSE 1 END, s.s_id DESC " +
+                    "ORDER BY CASE WHEN gup.nic = :exactSearch THEN 0 ELSE 1 END, COALESCE(s.is_active, 0) DESC, COALESCE(s.s_id, 0) DESC " +
                     "LIMIT 1";
             
             List<Object[]> results = em.createNativeQuery(sql)
@@ -1254,6 +1266,224 @@ public class StudentService {
         } catch (Exception e) {
             logger.warn("Error getting exchange rate for date {}: {}", date, e.getMessage());
             return 380.0; // Default fallback
+        }
+    }
+    
+    /**
+     * Get course-specific overdue report.
+     * Returns students enrolled in courses 321, 328, 331, 340 
+     * where student_batches.total_due_fee != 0.
+     */
+    public List<java.util.Map<String, Object>> getCourseOverdueReport(int courseId) {
+        try {
+            String sql = """
+                SELECT 
+                    ROW_NUMBER() OVER (ORDER BY due_amount DESC) as row_num,
+                    nic,
+                    student_name,
+                    contact_number,
+                    course_fee,
+                    scholarship_pct,
+                    payable_fee,
+                    total_paid,
+                    due_amount,
+                    (payable_fee - total_paid) as calculated_balance,
+                    last_payment_date,
+                    days_overdue,
+                    course_name
+                FROM (
+                    SELECT 
+                        gup.nic,
+                        CONCAT(COALESCE(gup.first_name, ''), ' ', COALESCE(gup.last_name, '')) as student_name,
+                        gup.mobile_phone as contact_number,
+                        MAX(sps.course_fee) as course_fee,
+                        MAX(sps.scholarship_value) as scholarship_pct,
+                        MAX(sps.discounted_fee) as payable_fee,
+                        COALESCE(MAX(paid.total_paid), 0) as total_paid,
+                        MAX(due.total_due) as due_amount,
+                        MAX(last_payment.last_date) as last_payment_date,
+                        MAX(DATEDIFF(CURDATE(), COALESCE(last_payment.last_date, sps.release_date))) as days_overdue,
+                        MAX(c.course_title) as course_name
+                    FROM scholarship_payment_scheduler sps
+                    JOIN general_user_profile gup ON sps.general_user_profile_gup_id = gup.gup_id
+                    JOIN student s ON s.general_user_profilegup_id = gup.gup_id
+                    JOIN course c ON sps.course_cid = c.cid
+                    JOIN (
+                        SELECT sb.students_id, sb.course_cid, sb.total_due_fee as total_due
+                        FROM student_batches sb
+                        WHERE sb.total_due_fee != 0
+                        AND sb.course_cid IN (321, 328, 331, 340)
+                        AND sb.is_active != 0
+                    ) due ON due.students_id = s.s_id AND due.course_cid = sps.course_cid
+                    LEFT JOIN (
+                        SELECT v.general_user_profilegup_id, SUM(vi.amount) as total_paid
+                        FROM voucher v
+                        JOIN voucher_item vi ON vi.vouchervid = v.vid
+                        GROUP BY v.general_user_profilegup_id
+                    ) paid ON paid.general_user_profilegup_id = gup.gup_id
+                    LEFT JOIN (
+                        SELECT v.general_user_profilegup_id, MAX(v.date) as last_date
+                        FROM voucher v
+                        JOIN voucher_item vi ON vi.vouchervid = v.vid
+                        GROUP BY v.general_user_profilegup_id
+                    ) last_payment ON last_payment.general_user_profilegup_id = gup.gup_id
+                    WHERE sps.course_cid IN (321, 328, 331, 340)
+                    GROUP BY gup.nic, gup.first_name, gup.last_name, gup.mobile_phone
+                ) grouped
+                ORDER BY due_amount DESC
+                """;
+            
+            List<Object[]> results = em.createNativeQuery(sql)
+                    .getResultList();
+            
+            List<java.util.Map<String, Object>> report = new java.util.ArrayList<>();
+            for (Object[] row : results) {
+                java.util.Map<String, Object> record = new java.util.LinkedHashMap<>();
+                int i = 0;
+                record.put("index", row[i] != null ? ((Number) row[i]).intValue() : 0); i++;
+                record.put("nic", row[i]); i++;
+                record.put("studentName", row[i]); i++;
+                record.put("contactNumber", row[i]); i++;
+                record.put("courseFee", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("scholarshipPct", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("payableFee", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("totalPaid", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("dueAmount", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("calculatedBalance", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("lastPaymentDate", row[i] != null ? row[i].toString() : null); i++;
+                record.put("daysOverdue", row[i] != null ? ((Number) row[i]).intValue() : 0); i++;
+                record.put("courseName", row[i] != null ? row[i].toString() : null); i++;
+                report.add(record);
+            }
+            
+            return report;
+        } catch (Exception e) {
+            logger.error("Error getting course overdue report for courseId: {}", courseId, e);
+            return new java.util.ArrayList<>();
+        }
+    }
+    
+    /**
+     * Get count of student_batches records with specific total_due_fee value.
+     */
+    public Long getStudentBatchesCountByDueFee(Double dueFee) {
+        try {
+            String sql = "SELECT COUNT(*) FROM student_batches WHERE total_due_fee = :dueFee";
+            Object result = em.createNativeQuery(sql)
+                    .setParameter("dueFee", dueFee)
+                    .getSingleResult();
+            return ((Number) result).longValue();
+        } catch (Exception e) {
+            logger.error("Error getting student_batches count for dueFee: {}", dueFee, e);
+            return 0L;
+        }
+    }
+    
+    /**
+     * Get count of inactive student_batches records that would appear in the overdue report.
+     */
+    public java.util.Map<String, Object> getInactiveBatchesInOverdueReport() {
+        try {
+            // Count total records in current overdue report query (without is_active filter)
+            String totalSql = """
+                SELECT COUNT(DISTINCT gup.nic)
+                FROM scholarship_payment_scheduler sps
+                JOIN general_user_profile gup ON sps.general_user_profile_gup_id = gup.gup_id
+                JOIN student s ON s.general_user_profilegup_id = gup.gup_id
+                JOIN student_batches sb ON sb.students_id = s.s_id AND sb.course_cid = sps.course_cid
+                WHERE sps.course_cid IN (321, 328, 331, 340)
+                AND sb.total_due_fee != 0
+                """;
+            
+            // Count records from inactive batches only
+            String inactiveSql = """
+                SELECT COUNT(DISTINCT gup.nic)
+                FROM scholarship_payment_scheduler sps
+                JOIN general_user_profile gup ON sps.general_user_profile_gup_id = gup.gup_id
+                JOIN student s ON s.general_user_profilegup_id = gup.gup_id
+                JOIN student_batches sb ON sb.students_id = s.s_id AND sb.course_cid = sps.course_cid
+                WHERE sps.course_cid IN (321, 328, 331, 340)
+                AND sb.total_due_fee != 0
+                AND sb.is_active = 0
+                """;
+            
+            // Count records from active batches only
+            String activeSql = """
+                SELECT COUNT(DISTINCT gup.nic)
+                FROM scholarship_payment_scheduler sps
+                JOIN general_user_profile gup ON sps.general_user_profile_gup_id = gup.gup_id
+                JOIN student s ON s.general_user_profilegup_id = gup.gup_id
+                JOIN student_batches sb ON sb.students_id = s.s_id AND sb.course_cid = sps.course_cid
+                WHERE sps.course_cid IN (321, 328, 331, 340)
+                AND sb.total_due_fee != 0
+                AND sb.is_active != 0
+                """;
+            
+            Long total = ((Number) em.createNativeQuery(totalSql).getSingleResult()).longValue();
+            Long inactive = ((Number) em.createNativeQuery(inactiveSql).getSingleResult()).longValue();
+            Long active = ((Number) em.createNativeQuery(activeSql).getSingleResult()).longValue();
+            
+            java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("totalRecords", total);
+            result.put("fromInactiveBatches", inactive);
+            result.put("fromActiveBatches", active);
+            return result;
+        } catch (Exception e) {
+            logger.error("Error getting inactive batches count in overdue report", e);
+            java.util.Map<String, Object> result = new java.util.LinkedHashMap<>();
+            result.put("error", e.getMessage());
+            return result;
+        }
+    }
+    
+    public List<java.util.Map<String, Object>> analyzeOverpaidStudents() {
+        try {
+            String sql = """
+                SELECT 
+                    gup.nic,
+                    CONCAT(COALESCE(gup.first_name, ''), ' ', COALESCE(gup.last_name, '')) as student_name,
+                    MAX(sps.discounted_fee) as payable_fee,
+                    COALESCE(MAX(paid.total_paid), 0) as total_paid,
+                    MAX(sb.total_due_fee) as total_due_fee_in_db,
+                    (MAX(sps.discounted_fee) - COALESCE(MAX(paid.total_paid), 0)) as calculated_balance
+                FROM scholarship_payment_scheduler sps
+                JOIN general_user_profile gup ON sps.general_user_profile_gup_id = gup.gup_id
+                JOIN student s ON s.general_user_profilegup_id = gup.gup_id
+                JOIN student_batches sb ON sb.students_id = s.s_id AND sb.course_cid = sps.course_cid
+                LEFT JOIN (
+                    SELECT v.general_user_profilegup_id, SUM(vi.amount) as total_paid
+                    FROM voucher v
+                    JOIN voucher_item vi ON vi.vouchervid = v.vid
+                    GROUP BY v.general_user_profilegup_id
+                ) paid ON paid.general_user_profilegup_id = gup.gup_id
+                WHERE sps.course_cid IN (321, 328, 331, 340)
+                AND sb.total_due_fee != 0
+                AND sb.is_active != 0
+                GROUP BY gup.nic, gup.first_name, gup.last_name
+                HAVING (MAX(sps.discounted_fee) - COALESCE(MAX(paid.total_paid), 0)) < 0
+                ORDER BY calculated_balance ASC
+                LIMIT 50
+                """;
+            
+            List<Object[]> results = em.createNativeQuery(sql).getResultList();
+            
+            List<java.util.Map<String, Object>> report = new java.util.ArrayList<>();
+            for (Object[] row : results) {
+                java.util.Map<String, Object> record = new java.util.LinkedHashMap<>();
+                int i = 0;
+                record.put("nic", row[i++]);
+                record.put("studentName", row[i++]);
+                record.put("payableFee", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("totalPaid", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("totalDueFeeInDb", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                record.put("calculatedBalance", row[i] != null ? ((Number) row[i]).doubleValue() : 0.0); i++;
+                report.add(record);
+            }
+            
+            return report;
+        } catch (Exception e) {
+            logger.error("Error analyzing overpaid students", e);
+            return new java.util.ArrayList<>();
         }
     }
 }

@@ -13,6 +13,8 @@ import OverdueStudentsReport from './pages/reports/OverdueStudentsReport'
 import PaymentReconciliationReport from './pages/reports/PaymentReconciliationReport'
 import ScholarshipDiagnosticReport from './pages/reports/ScholarshipDiagnosticReport'
 import StudentRecoveryReport from './pages/reports/StudentRecoveryReport'
+import CourseOverdueReport from './pages/reports/CourseOverdueReport'
+import SyncDashboard from './pages/admin/SyncDashboard'
 import Login from './pages/auth/Login'
 import { useAuthStore } from './store/authStore'
 
@@ -44,6 +46,8 @@ function App() {
         <Route path="/reports/reconciliation" element={<PaymentReconciliationReport />} />
         <Route path="/reports/scholarship-diagnostic" element={<ScholarshipDiagnosticReport />} />
         <Route path="/reports/student-recovery" element={<StudentRecoveryReport />} />
+        <Route path="/reports/course-overdue" element={<CourseOverdueReport />} />
+        <Route path="/admin/sync" element={<SyncDashboard />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

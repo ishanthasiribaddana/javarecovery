@@ -24,6 +24,7 @@
         <class>com.jiat.recovery.entity.RecoveryReportTemplate</class>
         <class>com.jiat.recovery.entity.RecoveryReportLog</class>
         <class>com.jiat.recovery.entity.RecoveryScheduledReport</class>
+        <class>com.jiat.recovery.entity.SyncLog</class>
         
         <!-- Existing IJTS System Entities (Read-Only) -->
         <class>com.jiat.recovery.entity.readonly.Student</class>
@@ -52,8 +53,8 @@
             <property name="hibernate.format_sql" value="true"/>
             <property name="hibernate.use_sql_comments" value="true"/>
             
-            <!-- Schema Generation - none (using existing database schema) -->
-            <property name="hibernate.hbm2ddl.auto" value="none"/>
+            <!-- Schema Generation - update to create new tables -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
             
             <!-- Connection Pool (managed by WildFly) -->
             <property name="hibernate.connection.pool_size" value="10"/>

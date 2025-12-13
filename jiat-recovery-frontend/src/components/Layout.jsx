@@ -8,7 +8,8 @@ import {
   FileText,
   LogOut,
   Menu,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react'
 import { useState } from 'react'
 import { useAuthStore } from '../store/authStore'
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Bank Reconciliation', href: '/reconciliation', icon: Building2 },
   { name: 'Grievances', href: '/grievances', icon: MessageSquare },
   { name: 'Reports', href: '/reports', icon: FileText },
+  { name: 'Data Sync', href: '/admin/sync', icon: RefreshCw },
 ]
 
 export default function Layout({ children }) {

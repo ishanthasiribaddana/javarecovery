@@ -49,7 +49,8 @@ public class StudentProfileDTO {
     private String paymentOptionName;
     
     // Scholarship info from scholarship_payment_scheduler
-    private Double scholarshipPercentage; // Based on selected payment option
+    private Double scholarshipPercentage; // Based on selected payment option (current, may be downgraded)
+    private Double originalScholarshipPercentage; // Original scholarship before any downgrade
     private Double totalCourseFee;
     private Double payableCourseFee;
     private Double scholarshipAmount; // Calculated: totalCourseFee × scholarshipPercentage
@@ -81,6 +82,10 @@ public class StudentProfileDTO {
     private Double bcuPaidAmount;  // Total paid from voucher_item for BCU courses
     private Double bcuDueAmount;   // Calculated: bcuStandardFee - bcuPaidAmount
     private Integer bcuCourseId;   // 360 or 424
+    
+    // Last payment info
+    private LocalDate lastPaymentDate;
+    private Integer daysSinceLastPayment;
     
     // Payment schedule (set separately via setter)
     private PaymentScheduleDTO paymentSchedule;
@@ -180,6 +185,12 @@ public class StudentProfileDTO {
         // The discounted_fee from database may be outdated if scholarship percentage changed
         // Skip the discounted_fee column but still increment index
         i++; // Skip discounted_fee column
+        
+        // Original scholarship percentage (from scholarship_history - first downgrade record)
+        if (row.length > i && row[i] != null) {
+            this.originalScholarshipPercentage = ((Number) row[i]).doubleValue();
+        }
+        i++;
         
         if (this.scholarshipPercentage != null && this.scholarshipPercentage > 0) {
             // Calculate from percentage: payable = totalFee * (1 - scholarshipPercentage/100)
@@ -312,6 +323,22 @@ public class StudentProfileDTO {
         if (this.isBcuStudent != null && this.isBcuStudent && this.bcuStandardFee != null) {
             this.bcuDueAmount = Math.max(0, this.bcuStandardFee - (this.bcuPaidAmount != null ? this.bcuPaidAmount : 0));
         }
+        
+        // Last payment date
+        if (row.length > i && row[i] != null) {
+            if (row[i] instanceof java.sql.Date) {
+                this.lastPaymentDate = ((java.sql.Date) row[i]).toLocalDate();
+            } else if (row[i] instanceof LocalDate) {
+                this.lastPaymentDate = (LocalDate) row[i];
+            }
+        }
+        i++;
+        
+        // Days since last payment
+        if (row.length > i && row[i] != null) {
+            this.daysSinceLastPayment = ((Number) row[i]).intValue();
+        }
+        i++;
         
         // Calculate offer value and final payable
         if (this.payableCourseFee != null) {
@@ -463,6 +490,9 @@ public class StudentProfileDTO {
     public Double getScholarshipPercentage() { return scholarshipPercentage; }
     public void setScholarshipPercentage(Double scholarshipPercentage) { this.scholarshipPercentage = scholarshipPercentage; }
     
+    public Double getOriginalScholarshipPercentage() { return originalScholarshipPercentage; }
+    public void setOriginalScholarshipPercentage(Double originalScholarshipPercentage) { this.originalScholarshipPercentage = originalScholarshipPercentage; }
+    
     public Double getTotalCourseFee() { return totalCourseFee; }
     public void setTotalCourseFee(Double totalCourseFee) { this.totalCourseFee = totalCourseFee; }
     
@@ -531,6 +561,12 @@ public class StudentProfileDTO {
     
     public Integer getBcuCourseId() { return bcuCourseId; }
     public void setBcuCourseId(Integer bcuCourseId) { this.bcuCourseId = bcuCourseId; }
+    
+    public LocalDate getLastPaymentDate() { return lastPaymentDate; }
+    public void setLastPaymentDate(LocalDate lastPaymentDate) { this.lastPaymentDate = lastPaymentDate; }
+    
+    public Integer getDaysSinceLastPayment() { return daysSinceLastPayment; }
+    public void setDaysSinceLastPayment(Integer daysSinceLastPayment) { this.daysSinceLastPayment = daysSinceLastPayment; }
     
     public String getFullName() { return fullName; }
     public void setFullName(String fullName) { this.fullName = fullName; }

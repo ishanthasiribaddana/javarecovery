@@ -28,9 +28,10 @@ import {
   Award,
   BookOpen,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  AlertTriangle
 } from 'lucide-react'
-import { studentApi } from '../../services/api'
+import { studentApi, chatApi } from '../../services/api'
 
 export default function StudentSearch() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -57,6 +58,14 @@ export default function StudentSearch() {
     queryKey: ['student-profile', searchQuery],
     queryFn: () => studentApi.getProfile(searchQuery).then(res => res.data),
     enabled: searchQuery.length >= 2,
+    retry: false,
+  })
+
+  // Fetch chat history for the student
+  const { data: chatHistory } = useQuery({
+    queryKey: ['chat-history', studentProfile?.studentId],
+    queryFn: () => chatApi.getByStudentId(studentProfile?.studentId).then(res => res.data),
+    enabled: !!studentProfile?.studentId,
     retry: false,
   })
 
@@ -511,6 +520,202 @@ Recovery Department`
             </div>
           )}
 
+          {/* Notice Board - Split into Alerts and Chat History */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Alerts Section */}
+            <div className="card border-t-4 border-t-amber-500">
+              <div className="card-header bg-amber-50">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center mr-3">
+                    <AlertTriangle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Alerts</h2>
+                    <p className="text-sm text-gray-500">Important notifications for this student</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body">
+                {(() => {
+                  const notices = [];
+                  
+                  // Check for scholarship downgrade warning
+                  const originalPct = studentProfile?.originalScholarshipPercentage;
+                  const currentPct = studentProfile?.scholarshipPercentage;
+                  if (originalPct && originalPct !== currentPct) {
+                    notices.push({
+                      type: 'danger',
+                      icon: '⚠️',
+                      title: 'Scholarship Downgraded',
+                      message: `Scholarship reduced from ${originalPct}% to ${currentPct}% due to payment delay.`,
+                    });
+                  }
+                  
+                  // Check for outstanding dues
+                  if (student?.courseFeeTotalDueAmount > 0) {
+                    notices.push({
+                      type: 'warning',
+                      icon: '💰',
+                      title: 'Outstanding Payment',
+                      message: `Student has an outstanding balance of ${formatCurrency(student.courseFeeTotalDueAmount)}.`,
+                    });
+                  }
+                  
+                  // Check for no payment option assigned
+                  if (!studentProfile?.paymentOptionId) {
+                    notices.push({
+                      type: 'info',
+                      icon: '📋',
+                      title: 'Payment Plan Not Assigned',
+                      message: 'No payment plan has been assigned. Default semester plan applied.',
+                    });
+                  }
+                  
+                  // Check for no scholarship
+                  if (!studentProfile?.scholarshipPercentage || studentProfile?.scholarshipPercentage === 0) {
+                    notices.push({
+                      type: 'warning',
+                      icon: '🎓',
+                      title: 'Scholarship Verification Required',
+                      message: 'No scholarship assigned. Lowest semester plan (35%) applied. Must verify with scholarship results.',
+                    });
+                  }
+                  
+                  // Check for last payment date and overdue
+                  if (studentProfile?.lastPaymentDate) {
+                    const daysSince = studentProfile?.daysSinceLastPayment || 0;
+                    const lastPaymentFormatted = new Date(studentProfile.lastPaymentDate).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric'
+                    });
+                    
+                    if (daysSince > 90) {
+                      notices.push({
+                        type: 'danger',
+                        icon: '🚨',
+                        title: 'Payment Severely Overdue',
+                        message: `Last payment was on ${lastPaymentFormatted} (${daysSince} days ago). Student has not made a payment in over 90 days.`,
+                      });
+                    } else if (daysSince > 60) {
+                      notices.push({
+                        type: 'warning',
+                        icon: '⏰',
+                        title: 'Payment Overdue',
+                        message: `Last payment was on ${lastPaymentFormatted} (${daysSince} days ago). Payment is overdue.`,
+                      });
+                    } else if (daysSince > 30) {
+                      notices.push({
+                        type: 'info',
+                        icon: '📅',
+                        title: 'Payment Due Soon',
+                        message: `Last payment was on ${lastPaymentFormatted} (${daysSince} days ago).`,
+                      });
+                    }
+                  } else if (studentProfile && !studentProfile?.lastPaymentDate) {
+                    notices.push({
+                      type: 'danger',
+                      icon: '❌',
+                      title: 'No Payment Records',
+                      message: 'No payment records found for this student.',
+                    });
+                  }
+                  
+                  if (notices.length === 0) {
+                    return (
+                      <div className="flex items-center justify-center py-6 text-gray-500">
+                        <CheckCircle className="w-5 h-5 mr-2 text-green-500" />
+                        <span>No alerts for this student</span>
+                      </div>
+                    );
+                  }
+                  
+                  return (
+                    <div className="space-y-3">
+                      {notices.map((notice, index) => (
+                        <div 
+                          key={index} 
+                          className={`flex items-start p-3 rounded-lg border ${
+                            notice.type === 'danger' ? 'bg-red-50 border-red-300' :
+                            notice.type === 'warning' ? 'bg-amber-50 border-amber-300' :
+                            'bg-blue-50 border-blue-300'
+                          }`}
+                        >
+                          <span className="text-xl mr-3">{notice.icon}</span>
+                          <div>
+                            <p className={`font-semibold text-sm ${
+                              notice.type === 'danger' ? 'text-red-800' :
+                              notice.type === 'warning' ? 'text-amber-800' :
+                              'text-blue-800'
+                            }`}>{notice.title}</p>
+                            <p className={`text-xs ${
+                              notice.type === 'danger' ? 'text-red-700' :
+                              notice.type === 'warning' ? 'text-amber-700' :
+                              'text-blue-700'
+                            }`}>{notice.message}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Chat History Section */}
+            <div className="card border-t-4 border-t-purple-500">
+              <div className="card-header bg-purple-50">
+                <div className="flex items-center">
+                  <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center mr-3">
+                    <MessageCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-900">Chat History</h2>
+                    <p className="text-sm text-gray-500">Communication history with this student</p>
+                  </div>
+                </div>
+              </div>
+              <div className="card-body max-h-80 overflow-y-auto">
+                {chatHistory && chatHistory.length > 0 ? (
+                  <div className="space-y-3">
+                    {chatHistory.slice(0, 10).map((chat, index) => (
+                      <div 
+                        key={index} 
+                        className={`p-3 rounded-lg ${
+                          chat.role === 'USER' ? 'bg-blue-50 border border-blue-200 ml-4' : 
+                          'bg-gray-50 border border-gray-200 mr-4'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-xs font-semibold ${
+                            chat.role === 'USER' ? 'text-blue-700' : 'text-gray-700'
+                          }`}>
+                            {chat.role === 'USER' ? 'Student' : 'Recovery Officer'}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {chat.createdAt ? new Date(chat.createdAt).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            }) : ''}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-700">{chat.message}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center py-6 text-gray-500">
+                    <MessageCircle className="w-5 h-5 mr-2 text-gray-400" />
+                    <span>No chat history available</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* 4 Segments Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
@@ -813,6 +1018,10 @@ Recovery Department`
                   const displayScholarshipAmount = hasNoScholarship ? (totalFee * lowestSemesterScholarshipPct / 100) : (studentProfile?.scholarshipAmount || 0);
                   const displayPayableFee = hasNoScholarship ? (totalFee - displayScholarshipAmount) : (studentProfile?.payableCourseFee || 0);
                   
+                  // Check if scholarship was downgraded (original != current)
+                  const originalPct = studentProfile?.originalScholarshipPercentage;
+                  const wasDowngraded = originalPct && originalPct !== displayScholarshipPct;
+                  
                   return (
                     <>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -820,12 +1029,20 @@ Recovery Department`
                           <p className="text-xs text-gray-500 uppercase">Total Course Fee</p>
                           <p className="text-xl font-bold text-gray-900">{formatCurrency(totalFee)}</p>
                         </div>
-                        <div className={`rounded-lg p-4 text-center ${hasNoScholarship ? 'bg-amber-50 border border-amber-200' : 'bg-purple-50'}`}>
+                        <div className={`rounded-lg p-4 text-center ${hasNoScholarship ? 'bg-amber-50 border border-amber-200' : wasDowngraded ? 'bg-red-50 border border-red-300' : 'bg-purple-50'}`}>
                           <p className="text-xs text-gray-500 uppercase">Scholarship Percentage</p>
-                          <p className={`text-xl font-bold ${hasNoScholarship ? 'text-amber-600' : 'text-purple-600'}`}>
-                            {displayScholarshipPct}%
-                            {hasNoScholarship && <span className="text-xs ml-1">(Semester)</span>}
-                          </p>
+                          {wasDowngraded ? (
+                            <div>
+                              <p className="text-sm text-red-400 line-through">{originalPct}%</p>
+                              <p className="text-xl font-bold text-red-600">{displayScholarshipPct}%</p>
+                              <p className="text-xs text-red-500 mt-1">⚠️ Downgraded</p>
+                            </div>
+                          ) : (
+                            <p className={`text-xl font-bold ${hasNoScholarship ? 'text-amber-600' : 'text-purple-600'}`}>
+                              {displayScholarshipPct}%
+                              {hasNoScholarship && <span className="text-xs ml-1">(Semester)</span>}
+                            </p>
+                          )}
                         </div>
                         <div className={`rounded-lg p-4 text-center ${hasNoScholarship ? 'bg-amber-50 border border-amber-200' : 'bg-green-50'}`}>
                           <p className="text-xs text-gray-500 uppercase">Scholarship Value</p>
@@ -1094,7 +1311,7 @@ Recovery Department`
                     const desc = (p.description || '').toLowerCase();
                     return !otherPaymentKeywords.some(keyword => desc.includes(keyword));
                   });
-                  return coursePayments.length > 0 ? (
+                  return (
                     <div className="mb-4">
                       <h5 className="text-sm font-medium text-blue-700 mb-2 flex items-center">
                         <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
@@ -1112,27 +1329,35 @@ Recovery Department`
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 bg-white">
-                            {(showAllPayments ? coursePayments : coursePayments.slice(0, 10)).map((inst, idx) => (
-                              <tr key={inst.voucherItemId || idx} className="hover:bg-blue-50">
-                                <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
-                                <td className="px-2 py-1.5 text-gray-700">{inst.dueDate || '-'}</td>
-                                <td className="px-2 py-1.5 text-gray-500 font-mono text-xs">{inst.voucherItemId || '-'}</td>
-                                <td className="px-2 py-1.5 text-gray-600 truncate max-w-[200px]" title={inst.description}>{inst.description || '-'}</td>
-                                <td className="px-2 py-1.5 font-medium text-green-600 text-right">{formatCurrency(inst.paidAmount)}</td>
-                              </tr>
-                            ))}
-                            {!showAllPayments && coursePayments.length > 10 && (
-                              <tr className="bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setShowAllPayments(true)}>
-                                <td colSpan="5" className="px-2 py-1.5 text-center text-blue-600 text-xs font-medium">
-                                  Show all {coursePayments.length} payments ▼
-                                </td>
-                              </tr>
-                            )}
-                            {showAllPayments && coursePayments.length > 10 && (
-                              <tr className="bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setShowAllPayments(false)}>
-                                <td colSpan="5" className="px-2 py-1.5 text-center text-blue-600 text-xs font-medium">
-                                  Show less ▲
-                                </td>
+                            {coursePayments.length > 0 ? (
+                              <>
+                                {(showAllPayments ? coursePayments : coursePayments.slice(0, 10)).map((inst, idx) => (
+                                  <tr key={inst.voucherItemId || idx} className="hover:bg-blue-50">
+                                    <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
+                                    <td className="px-2 py-1.5 text-gray-700">{inst.dueDate || '-'}</td>
+                                    <td className="px-2 py-1.5 text-gray-500 font-mono text-xs">{inst.voucherItemId || '-'}</td>
+                                    <td className="px-2 py-1.5 text-gray-600 truncate max-w-[200px]" title={inst.description}>{inst.description || '-'}</td>
+                                    <td className="px-2 py-1.5 font-medium text-green-600 text-right">{formatCurrency(inst.paidAmount)}</td>
+                                  </tr>
+                                ))}
+                                {!showAllPayments && coursePayments.length > 10 && (
+                                  <tr className="bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setShowAllPayments(true)}>
+                                    <td colSpan="5" className="px-2 py-1.5 text-center text-blue-600 text-xs font-medium">
+                                      Show all {coursePayments.length} payments ▼
+                                    </td>
+                                  </tr>
+                                )}
+                                {showAllPayments && coursePayments.length > 10 && (
+                                  <tr className="bg-gray-50 cursor-pointer hover:bg-blue-50" onClick={() => setShowAllPayments(false)}>
+                                    <td colSpan="5" className="px-2 py-1.5 text-center text-blue-600 text-xs font-medium">
+                                      Show less ▲
+                                    </td>
+                                  </tr>
+                                )}
+                              </>
+                            ) : (
+                              <tr>
+                                <td colSpan="5" className="px-2 py-4 text-center text-gray-500">No course payments found</td>
                               </tr>
                             )}
                           </tbody>
@@ -1167,7 +1392,7 @@ Recovery Department`
                         </table>
                       </div>
                     </div>
-                  ) : null;
+                  );
                 })()}
                 
                 {/* 2. Other Payments (LKR) - Portal Fee, ID Card, Convocation, etc. */}
@@ -1178,7 +1403,7 @@ Recovery Department`
                     const desc = (p.description || '').toLowerCase();
                     return otherPaymentKeywords.some(keyword => desc.includes(keyword));
                   });
-                  return otherPayments.length > 0 ? (
+                  return (
                     <div className="mb-4">
                       <h5 className="text-sm font-medium text-teal-700 mb-2 flex items-center">
                         <span className="w-2 h-2 bg-teal-500 rounded-full mr-2"></span>
@@ -1197,15 +1422,21 @@ Recovery Department`
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 bg-white">
-                            {otherPayments.map((inst, idx) => (
-                              <tr key={inst.voucherItemId || idx} className="hover:bg-teal-50">
-                                <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
-                                <td className="px-2 py-1.5 text-gray-700">{inst.dueDate || '-'}</td>
-                                <td className="px-2 py-1.5 text-gray-500 font-mono text-xs">{inst.voucherItemId || '-'}</td>
-                                <td className="px-2 py-1.5 text-gray-600 truncate max-w-[200px]" title={inst.description}>{inst.description || '-'}</td>
-                                <td className="px-2 py-1.5 font-medium text-green-600 text-right">{formatCurrency(inst.paidAmount)}</td>
+                            {otherPayments.length > 0 ? (
+                              otherPayments.map((inst, idx) => (
+                                <tr key={inst.voucherItemId || idx} className="hover:bg-teal-50">
+                                  <td className="px-2 py-1.5 text-gray-500">{idx + 1}</td>
+                                  <td className="px-2 py-1.5 text-gray-700">{inst.dueDate || '-'}</td>
+                                  <td className="px-2 py-1.5 text-gray-500 font-mono text-xs">{inst.voucherItemId || '-'}</td>
+                                  <td className="px-2 py-1.5 text-gray-600 truncate max-w-[200px]" title={inst.description}>{inst.description || '-'}</td>
+                                  <td className="px-2 py-1.5 font-medium text-green-600 text-right">{formatCurrency(inst.paidAmount)}</td>
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan="5" className="px-2 py-4 text-center text-gray-500">No other payments found</td>
                               </tr>
-                            ))}
+                            )}
                           </tbody>
                           <tfoot className="bg-teal-50 font-semibold">
                             <tr>
@@ -1218,7 +1449,7 @@ Recovery Department`
                         </table>
                       </div>
                     </div>
-                  ) : null;
+                  );
                 })()}
 
                 {/* 3. International & University Fee (GBP) - Always shown */}

@@ -147,6 +147,22 @@ export default function Reports() {
           </div>
           <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
         </Link>
+        
+        <Link 
+          to="/reports/course-overdue"
+          className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-shadow flex items-center justify-between group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-rose-100 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-rose-600" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-900">Your Campus - Overdue Report</p>
+              <p className="text-sm text-gray-500">BSc Software Engineering payments</p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-gray-600" />
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

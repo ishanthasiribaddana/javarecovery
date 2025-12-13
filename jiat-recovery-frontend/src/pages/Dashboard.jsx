@@ -34,6 +34,7 @@ import {
 } from 'recharts'
 import { caseApi, dashboardApi } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import ScholarshipAlertBoard from '../components/ScholarshipAlertBoard'
 
 const StatCard = ({ title, value, icon: Icon, color, href, trend, trendValue }) => (
   <Link to={href} className="card hover:shadow-md transition-shadow">
@@ -331,6 +332,9 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Scholarship Alert Board */}
+      <ScholarshipAlertBoard />
 
       {/* Outstanding by Course Chart */}
       <div className="card">

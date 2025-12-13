@@ -8,6 +8,7 @@ import com.jiat.recovery.dto.StudentSearchResponse;
 import com.jiat.recovery.entity.readonly.Student;
 import com.jiat.recovery.entity.readonly.UniversalPaymentManager;
 import com.jiat.recovery.service.StudentService;
+import com.jiat.recovery.service.ScholarshipService;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -26,6 +27,9 @@ public class StudentResource {
 
     @Inject
     private StudentService studentService;
+    
+    @Inject
+    private ScholarshipService scholarshipService;
 
     /**
      * Get student by internal ID.
@@ -355,5 +359,92 @@ public class StudentResource {
             @QueryParam("limit") @DefaultValue("100") int limit) {
         var report = studentService.getStudentRecoveryReport(limit);
         return Response.ok(report).build();
+    }
+    
+    /**
+     * Get scholarship warning status for a specific student.
+     */
+    @GET
+    @Path("/scholarship/warning/{gupId}")
+    public Response getScholarshipWarningStatus(@PathParam("gupId") Integer gupId) {
+        var status = scholarshipService.getScholarshipWarningStatus(gupId);
+        return Response.ok(status).build();
+    }
+    
+    /**
+     * Get all students with scholarship warnings (for alert board).
+     * Returns students within 14 days of scholarship expiry who haven't paid.
+     */
+    @GET
+    @Path("/scholarship/warnings")
+    public Response getStudentsWithWarnings() {
+        var warnings = scholarshipService.getStudentsWithWarnings();
+        return Response.ok(warnings).build();
+    }
+    
+    /**
+     * Get scholarship history for a specific scholarship_payment_scheduler.
+     */
+    @GET
+    @Path("/scholarship/history/{spsId}")
+    public Response getScholarshipHistory(@PathParam("spsId") Integer spsId) {
+        var history = scholarshipService.getScholarshipHistory(spsId);
+        return Response.ok(history).build();
+    }
+    
+    /**
+     * Manually trigger scholarship downgrade check (admin use).
+     */
+    @POST
+    @Path("/scholarship/run-downgrade")
+    public Response runManualDowngradeCheck() {
+        int count = scholarshipService.runManualDowngradeCheck();
+        return Response.ok("{\"downgraded\": " + count + "}").build();
+    }
+    
+    /**
+     * Get overdue report for courses 321, 328, 331, 340.
+     * Shows students with student_batches.total_due_fee != 0.
+     */
+    @GET
+    @Path("/reports/course-overdue")
+    public Response getCourseOverdueReport() {
+        var report = studentService.getCourseOverdueReport(0);
+        return Response.ok(report).build();
+    }
+    
+    /**
+     * Get count of student_batches records with specific total_due_fee value.
+     */
+    @GET
+    @Path("/reports/student-batches-count")
+    public Response getStudentBatchesCount(@QueryParam("dueFee") Double dueFee) {
+        if (dueFee == null) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity("{\"error\": \"dueFee parameter is required\"}")
+                    .build();
+        }
+        Long count = studentService.getStudentBatchesCountByDueFee(dueFee);
+        return Response.ok("{\"dueFee\": " + dueFee + ", \"count\": " + count + "}").build();
+    }
+    
+    /**
+     * Get count of inactive vs active student_batches in the overdue report.
+     */
+    @GET
+    @Path("/reports/inactive-batches-count")
+    public Response getInactiveBatchesCount() {
+        var result = studentService.getInactiveBatchesInOverdueReport();
+        return Response.ok(result).build();
+    }
+    
+    /**
+     * Analyze students who have overpaid (calculatedBalance < 0).
+     */
+    @GET
+    @Path("/reports/overpaid-students")
+    public Response getOverpaidStudents() {
+        var result = studentService.analyzeOverpaidStudents();
+        return Response.ok(result).build();
     }
 }

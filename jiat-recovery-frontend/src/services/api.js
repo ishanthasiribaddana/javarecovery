@@ -113,6 +113,28 @@ export const recoveryReportApi = {
   getReport: (limit = 100) => api.get(`/students/reports/recovery?limit=${limit}`),
 }
 
+// Scholarship API
+export const scholarshipApi = {
+  getWarningStatus: (gupId) => api.get(`/students/scholarship/warning/${gupId}`),
+  getWarnings: () => api.get('/students/scholarship/warnings'),
+  getHistory: (spsId) => api.get(`/students/scholarship/history/${spsId}`),
+  runDowngrade: () => api.post('/students/scholarship/run-downgrade'),
+}
+
+// Chat History API
+export const chatApi = {
+  getByStudentId: (studentSId) => api.get(`/chat/student/${studentSId}`),
+}
+
+// Sync API (Java Institute Integration)
+export const syncApi = {
+  getHealth: () => api.get('/sync/health'),
+  getStatus: () => api.get('/sync/status'),
+  getHistory: (limit = 20) => api.get(`/sync/history?limit=${limit}`),
+  triggerFullSync: () => api.post('/sync/full'),
+  triggerIncrementalSync: () => api.post('/sync/incremental'),
+}
+
 // Dashboard API
 export const dashboardApi = {
   getAll: (officerId) => api.get(`/dashboard${officerId ? `?officerId=${officerId}` : ''}`),
